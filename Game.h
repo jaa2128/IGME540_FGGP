@@ -22,6 +22,8 @@ private:
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void LoadShaders();
 	void CreateGeometry();
+	void RefreshUI(float deltaTime);
+	void BuildUI();
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the
@@ -36,5 +38,12 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+
+	// Variables that must persist between frames
+	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f }; // background color
+	bool isDemoVisible = true; // is the ImGui demo window visible?
+
+	// demo array for ImGui Combo (dropdown select)
+	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
 };
 

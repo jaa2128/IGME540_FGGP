@@ -7,6 +7,11 @@
 
 #include <DirectXMath.h>
 
+
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
+
 // Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
@@ -20,11 +25,24 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game()
 {
+
+	// Initialize ImGui itself & platform/renderer backends
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(Window::Handle());
+	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
+
+	// Pick a style (uncomment one of these 3)
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsLight();
+	//ImGui::StyleColorsClassic();
+
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
 	//  - You'll be expanding and/or replacing these later
 	LoadShaders();
 	CreateGeometry();
+
 
 	// Set initial graphics API state
 	//  - These settings persist until we change them
@@ -58,7 +76,10 @@ Game::Game()
 // --------------------------------------------------------
 Game::~Game()
 {
-
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 }
 
 
@@ -226,13 +247,14 @@ void Game::CreateGeometry()
 }
 
 
+
 // --------------------------------------------------------
 // Handle resizing to match the new window size
 //  - Eventually, we'll want to update our 3D camera
 // --------------------------------------------------------
 void Game::OnResize()
 {
-	
+
 }
 
 
@@ -241,6 +263,8 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+	RefreshUI(deltaTime);
+	BuildUI();
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
@@ -257,8 +281,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
-		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
-		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
+		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(), color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
@@ -292,6 +315,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - These should happen exactly ONCE PER FRAME
 	// - At the very end of the frame (after drawing *everything*)
 	{
+		ImGui::Render(); // Turns this frame’s UI into renderable triangles
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData()); // Draws it to the screen
+
 		// Present at the end of the frame
 		bool vsync = Graphics::VsyncState();
 		Graphics::SwapChain->Present(
@@ -306,5 +332,94 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 }
 
+void Game::RefreshUI(float deltaTime) {
+	// Feed fresh data to ImGui
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)Window::Width();
+	io.DisplaySize.y = (float)Window::Height();
 
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// Determine new input capture
+	Input::SetKeyboardCapture(io.WantCaptureKeyboard);
+	Input::SetMouseCapture(io.WantCaptureMouse);
+
+	// Show the demo window if it is visible
+	if(isDemoVisible)
+	ImGui::ShowDemoWindow();
+}
+
+void Game::BuildUI()
+{
+	// Title of Window
+	ImGui::Begin("Julian's Awesome First Window :D");
+
+	// Inspector Collapsing Header
+	if (ImGui::CollapsingHeader("Inspector")) {
+
+		// App Details
+		if (ImGui::TreeNode("App Details")) {
+
+			// FPS Display
+			ImGui::Text("Framerate: %f fps", ImGui::GetIO().Framerate);
+
+			// Window Resolution Display
+			ImGui::Text("Window Client Size: %dx%d", Window::Width(), Window::Height());
+
+			// Background Color Editor
+			ImGui::ColorEdit4("RGBA color editor", color);
+
+			// Demo Window Toggle Button
+			if (ImGui::Button("Show ImGui Demo Window")) {
+				isDemoVisible = !isDemoVisible;
+			}
+
+			// Ends this Tree
+			ImGui::TreePop();
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Other Utils")) {
+		// initial value for the Slider
+		static int initValue = 0;
+		ImGui::SliderInt("Integer Slider", &initValue, -5, 5); // int slider
+
+		// Combo (Drop down select)
+		static int item_current = 0; // initial index for array used in combo
+		ImGui::Combo("Favorite Flavor?", // Label
+			&item_current, // initial index of the array
+			flavors, // const char* array of items 
+			IM_ARRAYSIZE(flavors), // how many items in that array should appear
+			2 // max height of the pop up (-1 is default but can be configured).
+		);
+	}
+	
+
+	ImGui::End();
+
+	
+
+	//// Example button
+	//if (ImGui::Button("Click me")) {
+	//	// This will only execute on frames in which the button is clicked
+	//}
+
+	//ImGui::SliderInt("Choose a number", &number, 0, 100);
+
+	//// Provide the address of the first element when creating vector editors
+	//// - Note the function names below are different!
+	//// - Additional parameters allow you to set the range and drag speed
+	//ImGui::DragFloat2("2-component editor", localArray);
+	//ImGui::DragFloat3("3-component editor", arrayAsPointer);
+	//ImGui::DragFloat4("4-component editor", &vectorStruct.x);
+
+	//// Can create a 3 or 4-component color editors, too!
+	//// - Notice the two different function names below
+	//ImGui::ColorEdit3("RGB color editor", &color.x);
+	
+}
 

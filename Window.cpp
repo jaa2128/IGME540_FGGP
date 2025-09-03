@@ -5,6 +5,14 @@
 
 #include <sstream>
 
+// Include ImGui's Win32 backend and forward declare the window handler function
+#include "ImGui/imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+	HWND hWnd,
+	UINT msg,
+	WPARAM wParam,
+	LPARAM lParam);
+
 namespace Window
 {
 	// Annonymous namespace to hold variables
@@ -23,7 +31,7 @@ namespace Window
 		HWND windowHandle = 0;
 		bool hasFocus = false;
 		bool isMinimized = false;
-		
+
 		// Function pointer to call
 		// when the window resizes
 		void (*onResize)() = 0;
@@ -56,8 +64,8 @@ bool Window::IsMinimized() { return isMinimized; }
 // --------------------------------------------------------
 HRESULT Window::Create(
 	HINSTANCE appInstance,
-	unsigned int width, 
-	unsigned int height, 
+	unsigned int width,
+	unsigned int height,
 	std::wstring titleBarText,
 	bool statsInTitleBar,
 	void (*resizeCallback)())
@@ -239,7 +247,7 @@ void Window::CreateConsoleWindow(int bufferLines, int bufferColumns, int windowL
 	// Get the current console mode and append options that allow colored output
 	DWORD currentMode = 0;
 	GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &currentMode);
-	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),
 		currentMode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
 	consoleCreated = true;
@@ -253,6 +261,10 @@ void Window::CreateConsoleWindow(int bufferLines, int bufferColumns, int windowL
 // --------------------------------------------------------
 LRESULT Window::ProcessMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	// Call ImGui’s message handler and exit early if necessary
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+		return true;
+
 	// Check the incoming message and handle any we care about
 	switch (uMsg)
 	{
@@ -279,14 +291,14 @@ LRESULT Window::ProcessMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		isMinimized = wParam == SIZE_MINIMIZED;
 		if (isMinimized)
 			return 0;
-		
+
 		// Save the new client area dimensions.
 		windowWidth = LOWORD(lParam);
 		windowHeight = HIWORD(lParam);
 
 		// Let other systems know
 		Graphics::ResizeBuffers(windowWidth, windowHeight);
-		if(onResize)
+		if (onResize)
 			onResize();
 
 		return 0;
