@@ -2,6 +2,8 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include<memory>
+#include "Mesh.h"
 
 class Game
 {
@@ -30,10 +32,6 @@ private:
 	//     Component Object Model, which DirectX objects do
 	//  - More info here: https://github.com/Microsoft/DirectXTK/wiki/ComPtr
 
-	// Buffers to hold actual geometry data
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
-
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
@@ -45,5 +43,10 @@ private:
 
 	// demo array for ImGui Combo (dropdown select)
 	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
+
+	// 3 distinct Mesh objects 
+	std::shared_ptr<Mesh> triangle;
+	std::shared_ptr<Mesh> initialJ;
+	std::shared_ptr<Mesh> initialA;
 };
 

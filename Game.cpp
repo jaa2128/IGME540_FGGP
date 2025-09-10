@@ -4,6 +4,8 @@
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
+#include "Mesh.h"
+#include <memory>
 
 #include <DirectXMath.h>
 
@@ -159,6 +161,7 @@ void Game::LoadShaders()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
+
 	// Create some temporary variables to represent colors
 	// - Not necessary, just makes things more readable
 	XMFLOAT4 red = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -191,59 +194,70 @@ void Game::CreateGeometry()
 	// - But just to see how it's done...
 	unsigned int indices[] = { 0, 1, 2 };
 
+	triangle = std::make_shared<Mesh>(vertices, indices,
+		(unsigned int)(sizeof(vertices) / sizeof(vertices[0])), // calculate num of elements in array
+		(unsigned int)(sizeof(indices) / sizeof(indices[0]))); // calculate num of elements in array
 
-	// Create a VERTEX BUFFER
-	// - This holds the vertex data of triangles for a single object
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// First, we need to describe the buffer we want Direct3D to make on the GPU
-		//  - Note that this variable is created on the stack since we only need it once
-		//  - After the buffer is created, this description variable is unnecessary
-		D3D11_BUFFER_DESC vbd = {};
-		vbd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		vbd.ByteWidth = sizeof(Vertex) * 3;       // 3 = number of vertices in the buffer
-		vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER; // Tells Direct3D this is a vertex buffer
-		vbd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		vbd.MiscFlags = 0;
-		vbd.StructureByteStride = 0;
 
-		// Create the proper struct to hold the initial vertex data
-		// - This is how we initially fill the buffer with data
-		// - Essentially, we're specifying a pointer to the data to copy
-		D3D11_SUBRESOURCE_DATA initialVertexData = {};
-		initialVertexData.pSysMem = vertices; // pSysMem = Pointer to System Memory
+	// Vertices of the letter J shape
+	Vertex verticesJ[] = {
+		{ XMFLOAT3(-0.9f, +0.9f, +0.0f), red}, //0
+		{ XMFLOAT3(-0.9f, +0.8f, +0.0f), red}, //1
+		{ XMFLOAT3(-0.75f, +0.9f, +0.0f), red}, //2
+		{ XMFLOAT3(-0.75f, +0.8f, +0.0f), red}, //3
+		{ XMFLOAT3(-0.65f, +0.9f, +0.0f), }, //4
+		{ XMFLOAT3(-0.65f, +0.8f, +0.0f), }, //5
+		{ XMFLOAT3(-0.55f, +0.9f, +0.0f), }, //6
+		{ XMFLOAT3(-0.55f, +0.8f, +0.0f), }, //7
+		{ XMFLOAT3(-0.65f, +0.6f, +0.0f), }, //8
+		{ XMFLOAT3(-0.75f, +0.7f, +0.0f), red}, //9
+		{ XMFLOAT3(-0.85f, +0.6f, +0.0f), red}, //10
+		{ XMFLOAT3(-0.85f, +0.7f, +0.0f), red}, //11
+	};
 
-		// Actually create the buffer on the GPU with the initial data
-		// - Once we do this, we'll NEVER CHANGE DATA IN THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&vbd, &initialVertexData, vertexBuffer.GetAddressOf());
-	}
+	// Indices of the letter J shape
+	unsigned int indicesJ[] = {
+		1, 0, 2,
+		1, 2, 3,
+		3, 2, 5,
+		5, 2, 4,
+		5, 4, 6,
+		5, 6, 7,
+		9, 3, 5,
+		8, 9, 5,
+		10, 9, 8,
+		10, 11, 9
+	};
 
-	// Create an INDEX BUFFER
-	// - This holds indices to elements in the vertex buffer
-	// - This is most useful when vertices are shared among neighboring triangles
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// Describe the buffer, as we did above, with two major differences
-		//  - Byte Width (3 unsigned integers vs. 3 whole vertices)
-		//  - Bind Flag (used as an index buffer instead of a vertex buffer) 
-		D3D11_BUFFER_DESC ibd = {};
-		ibd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		ibd.ByteWidth = sizeof(unsigned int) * 3;	// 3 = number of indices in the buffer
-		ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;	// Tells Direct3D this is an index buffer
-		ibd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		ibd.MiscFlags = 0;
-		ibd.StructureByteStride = 0;
+	// create the letter J Mesh
+	initialJ = std::make_shared<Mesh>(verticesJ, indicesJ,
+		(unsigned int)(sizeof(verticesJ) / sizeof(verticesJ[0])),
+		(unsigned int)(sizeof(indicesJ) / sizeof(indicesJ[0])));
 
-		// Specify the initial data for this buffer, similar to above
-		D3D11_SUBRESOURCE_DATA initialIndexData = {};
-		initialIndexData.pSysMem = indices; // pSysMem = Pointer to System Memory
+	// Vertices of the letter A Shape
+	Vertex verticesA[] = {
+		{ XMFLOAT3(-0.45f, +0.6f, +0.0f),  }, //0
+		{ XMFLOAT3(-0.3f, +0.9f, +0.0f),  }, //1
+		{ XMFLOAT3(-0.3f, +0.8f, +0.0f),  }, //2
+		{ XMFLOAT3(-0.35f, +0.6f, +0.0f),  }, //3
+		{ XMFLOAT3(-0.15f, +0.6f, +0.0f), red }, //4
+		{ XMFLOAT3(-0.25f, +0.6f, +0.0f), red }, //5
+	};
 
-		// Actually create the buffer with the initial data
-		// - Once we do this, we'll NEVER CHANGE THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&ibd, &initialIndexData, indexBuffer.GetAddressOf());
-	}
+	// Indices of the letter A Shape
+	unsigned int indicesA[] = {
+		0, 1, 2,
+		2, 3, 0,
+		2, 1, 4,
+		5, 2, 4
+	};
+
+	// create the letter A Mesh
+	initialA = std::make_shared<Mesh>(verticesA, indicesA,
+		(unsigned int)(sizeof(verticesA) / sizeof(verticesA[0])),
+		(unsigned int)(sizeof(indicesA) / sizeof(indicesA[0])));
+
+
 }
 
 
@@ -285,31 +299,9 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
-	// DRAW geometry
-	// - These steps are generally repeated for EACH object you draw
-	// - Other Direct3D calls will also be necessary to do more complex things
-	{
-		// Set buffers in the input assembler (IA) stage
-		//  - Do this ONCE PER OBJECT, since each object may have different geometry
-		//  - For this demo, this step *could* simply be done once during Init()
-		//  - However, this needs to be done between EACH DrawIndexed() call
-		//     when drawing different geometry, so it's here as an example
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		Graphics::Context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-		Graphics::Context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-		// Tell Direct3D to draw
-		//  - Begins the rendering pipeline on the GPU
-		//  - Do this ONCE PER OBJECT you intend to draw
-		//  - This will use all currently set Direct3D resources (shaders, buffers, etc)
-		//  - DrawIndexed() uses the currently set INDEX BUFFER to look up corresponding
-		//     vertices in the currently set VERTEX BUFFER
-		Graphics::Context->DrawIndexed(
-			3,     // The number of indices to use (we could draw a subset if we wanted)
-			0,     // Offset to the first index we want to use
-			0);    // Offset to add to each index when looking up vertices
-	}
+	triangle->Draw();
+	initialJ->Draw();
+	initialA->Draw();
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
@@ -349,8 +341,8 @@ void Game::RefreshUI(float deltaTime) {
 	Input::SetMouseCapture(io.WantCaptureMouse);
 
 	// Show the demo window if it is visible
-	if(isDemoVisible)
-	ImGui::ShowDemoWindow();
+	if (isDemoVisible)
+		ImGui::ShowDemoWindow();
 }
 
 void Game::BuildUI()
@@ -381,45 +373,31 @@ void Game::BuildUI()
 			// Ends this Tree
 			ImGui::TreePop();
 		}
+		if (ImGui::TreeNode("Meshes")) {
+			if (ImGui::TreeNode("Mesh: Starter Triangle")) {
+				ImGui::Text("Triangles: %d", triangle->CalculateTris());
+				ImGui::Text("Vertices: %d", triangle->GetVertexCount());
+				ImGui::Text("Indices: %d", triangle->GetIndexCount());
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Mesh: Letter J")) {
+				ImGui::Text("Triangles: %d", initialJ->CalculateTris());
+				ImGui::Text("Vertices: %d", initialJ->GetVertexCount());
+				ImGui::Text("Indices: %d", initialJ->GetIndexCount());
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Mesh: Letter A")) {
+				ImGui::Text("Triangles: %d", initialA->CalculateTris());
+				ImGui::Text("Vertices: %d", initialA->GetVertexCount());
+				ImGui::Text("Indices: %d", initialA->GetIndexCount());
+				ImGui::TreePop();
+			}
+			ImGui::TreePop();
+		}
 	}
 
-	if (ImGui::CollapsingHeader("Other Utils")) {
-		// initial value for the Slider
-		static int initValue = 0;
-		ImGui::SliderInt("Integer Slider", &initValue, -5, 5); // int slider
-
-		// Combo (Drop down select)
-		static int item_current = 0; // initial index for array used in combo
-		ImGui::Combo("Favorite Flavor?", // Label
-			&item_current, // initial index of the array
-			flavors, // const char* array of items 
-			IM_ARRAYSIZE(flavors), // how many items in that array should appear
-			2 // max height of the pop up (-1 is default but can be configured).
-		);
-	}
-	
 
 	ImGui::End();
 
-	
-
-	//// Example button
-	//if (ImGui::Button("Click me")) {
-	//	// This will only execute on frames in which the button is clicked
-	//}
-
-	//ImGui::SliderInt("Choose a number", &number, 0, 100);
-
-	//// Provide the address of the first element when creating vector editors
-	//// - Note the function names below are different!
-	//// - Additional parameters allow you to set the range and drag speed
-	//ImGui::DragFloat2("2-component editor", localArray);
-	//ImGui::DragFloat3("3-component editor", arrayAsPointer);
-	//ImGui::DragFloat4("4-component editor", &vectorStruct.x);
-
-	//// Can create a 3 or 4-component color editors, too!
-	//// - Notice the two different function names below
-	//ImGui::ColorEdit3("RGB color editor", &color.x);
-	
 }
 
