@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "Mesh.h"
 #include <memory>
+#include "BufferStructs.h"
 
 #include <DirectXMath.h>
 
@@ -17,6 +18,13 @@
 // Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
+
+// Math explanation:
+// ex. number = 28
+// 28 + 15 = 43
+// 43 / 16  = 2.6875 (truncates to 2 bc of integer division)
+// 2 * 16 = 32 (multiple of 16 that fits in 28 bytes of data)
+#define MULTIPLEOF16(number) (number + 15) / 16 * 16 
 
 // For the DirectX Math library
 using namespace DirectX;
@@ -67,6 +75,31 @@ Game::Game()
 		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
 		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
+
+	// First calculate the size of the external data as a multiple of 16
+	unsigned int sizeOfExternalData = sizeof(TintAndOffset);
+	sizeOfExternalData = MULTIPLEOF16(sizeOfExternalData);
+
+	// Describe the constant buffer
+	D3D11_BUFFER_DESC cbDesc = {};
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
+	cbDesc.ByteWidth = sizeOfExternalData; // size of external data as a multiple of 16
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
+
+	// Create the Buffer
+	Graphics::Device->CreateBuffer(&cbDesc, 0, constantBuffer.GetAddressOf());
+
+	// Bind the Constant Buffer to the Vertex Shader
+	Graphics::Context->VSSetConstantBuffers(
+		0, // which register to bind the buffer to 
+		1, // How many buffers
+		constantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
+	);
+
+	tintAndOffset.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
+	tintAndOffset.posOffset = XMFLOAT3(0.0, 0.0, 0.0); // no offset, should be updated by UI
+
 }
 
 
@@ -194,10 +227,6 @@ void Game::CreateGeometry()
 	// - But just to see how it's done...
 	unsigned int indices[] = { 0, 1, 2 };
 
-	triangle = std::make_shared<Mesh>(vertices, indices,
-		(unsigned int)(sizeof(vertices) / sizeof(vertices[0])), // calculate num of elements in array
-		(unsigned int)(sizeof(indices) / sizeof(indices[0]))); // calculate num of elements in array
-
 
 	// Vertices of the letter J shape
 	Vertex verticesJ[] = {
@@ -229,10 +258,6 @@ void Game::CreateGeometry()
 		10, 11, 9
 	};
 
-	// create the letter J Mesh
-	initialJ = std::make_shared<Mesh>(verticesJ, indicesJ,
-		(unsigned int)(sizeof(verticesJ) / sizeof(verticesJ[0])),
-		(unsigned int)(sizeof(indicesJ) / sizeof(indicesJ[0])));
 
 	// Vertices of the letter A Shape
 	Vertex verticesA[] = {
@@ -252,12 +277,10 @@ void Game::CreateGeometry()
 		5, 2, 4
 	};
 
-	// create the letter A Mesh
-	initialA = std::make_shared<Mesh>(verticesA, indicesA,
-		(unsigned int)(sizeof(verticesA) / sizeof(verticesA[0])),
-		(unsigned int)(sizeof(indicesA) / sizeof(indicesA[0])));
-
-
+	// push each mesh to the meshes array
+	meshes.push_back(std::make_shared<Mesh>(vertices, indices, (unsigned int)ARRAYSIZE(vertices), (unsigned int)ARRAYSIZE(indices), "Triangle"));
+	meshes.push_back(std::make_shared<Mesh>(verticesJ, indicesJ, (unsigned int)ARRAYSIZE(verticesJ), (unsigned int)ARRAYSIZE(indicesJ), "Letter J"));
+	meshes.push_back(std::make_shared<Mesh>(verticesA, indicesA, (unsigned int)ARRAYSIZE(verticesA), (unsigned int)ARRAYSIZE(indicesA), "Letter A"));
 }
 
 
@@ -299,9 +322,18 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
-	triangle->Draw();
-	initialJ->Draw();
-	initialA->Draw();
+	// copy data from struct to the constant buffer we intend to use
+	D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
+	Graphics::Context->Map(constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+
+	// copy external data struct to the mapped buffer
+	memcpy(mappedBuffer.pData, &tintAndOffset, sizeof(tintAndOffset));
+
+	Graphics::Context->Unmap(constantBuffer.Get(), 0);
+
+	for (auto& mesh : meshes) {
+		mesh->Draw();
+	}
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
@@ -374,26 +406,28 @@ void Game::BuildUI()
 			ImGui::TreePop();
 		}
 		if (ImGui::TreeNode("Meshes")) {
-			if (ImGui::TreeNode("Mesh: Starter Triangle")) {
-				ImGui::Text("Triangles: %d", triangle->CalculateTris());
-				ImGui::Text("Vertices: %d", triangle->GetVertexCount());
-				ImGui::Text("Indices: %d", triangle->GetIndexCount());
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Mesh: Letter J")) {
-				ImGui::Text("Triangles: %d", initialJ->CalculateTris());
-				ImGui::Text("Vertices: %d", initialJ->GetVertexCount());
-				ImGui::Text("Indices: %d", initialJ->GetIndexCount());
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Mesh: Letter A")) {
-				ImGui::Text("Triangles: %d", initialA->CalculateTris());
-				ImGui::Text("Vertices: %d", initialA->GetVertexCount());
-				ImGui::Text("Indices: %d", initialA->GetIndexCount());
-				ImGui::TreePop();
+			for (int i = 0; i < meshes.size(); i++) {
+
+				ImGui::PushID(meshes[i].get());
+
+				// Mesh Name and Data
+				if (ImGui::TreeNode("Mesh: %s", meshes[i]->GetName())) {
+					ImGui::Text("Triangles: %d", meshes[i]->CalculateTris());
+					ImGui::Text("Vertices: %d", meshes[i]->GetVertexCount());
+					ImGui::Text("Indices: %d", meshes[i]->GetIndexCount());
+					ImGui::TreePop();
+				}
+
+				ImGui::PopID();
 			}
 			ImGui::TreePop();
 		}
+	}
+
+	// Editor Collapsing Header
+	if (ImGui::CollapsingHeader("Editor")) {
+		ImGui::SliderFloat3("Offset", &tintAndOffset.posOffset.x, -1.0f, 1.0f);
+		ImGui::ColorEdit4("Color Tint", &tintAndOffset.colorTint.x);
 	}
 
 

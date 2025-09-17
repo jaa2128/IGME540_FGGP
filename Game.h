@@ -2,8 +2,10 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include <vector>
 #include<memory>
 #include "Mesh.h"
+#include "BufferStructs.h"
 
 class Game
 {
@@ -44,9 +46,13 @@ private:
 	// demo array for ImGui Combo (dropdown select)
 	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
 
-	// 3 distinct Mesh objects 
-	std::shared_ptr<Mesh> triangle;
-	std::shared_ptr<Mesh> initialJ;
-	std::shared_ptr<Mesh> initialA;
+	// array of Mesh Objects
+	std::vector<std::shared_ptr<Mesh>> meshes;
+
+	// Game's Constant Buffer
+	Microsoft::WRL::ComPtr<ID3D11Buffer> constantBuffer;
+
+	// Buffer Struct to be mapped and modified by the UI
+	TintAndOffset tintAndOffset = {};
 };
 

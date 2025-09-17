@@ -15,7 +15,7 @@ public:
 	/// <param name="vertices">Array of Vertices</param>
 	/// <param name="indices">Array of Indices used by Mesh</param>
 	/// <param name="numVertices">Number of Vertices in Array</param>
-	Mesh(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices);
+	Mesh(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices, const char* _name);
 	~Mesh();
 
 	// Getters for Vertex and Index Buffers
@@ -26,6 +26,7 @@ public:
 	int GetIndexCount();
 	int GetVertexCount();
 	
+	const char* GetName();
 	
 	int CalculateTris();
 
@@ -39,5 +40,7 @@ private:
 
 	int numIndices; // Number of Indices
 	int numVertices; // Number of Vertices
+
+	const char* name;
 };
 

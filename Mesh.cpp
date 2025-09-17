@@ -1,6 +1,6 @@
 #include "Mesh.h"
 
-Mesh::Mesh(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices)
+Mesh::Mesh(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices, const char* _name) : name(_name)
 {
 	// initialized private variables
 	numIndices = _numIndices;
@@ -83,6 +83,11 @@ int Mesh::GetIndexCount()
 int Mesh::GetVertexCount()
 {
 	return numVertices;
+}
+
+const char* Mesh::GetName()
+{
+	return name;
 }
 
 int Mesh::CalculateTris()
