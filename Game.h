@@ -6,6 +6,7 @@
 #include<memory>
 #include "Mesh.h"
 #include "BufferStructs.h"
+#include "Entity.h"
 
 class Game
 {
@@ -41,7 +42,6 @@ private:
 
 	// Variables that must persist between frames
 	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f }; // background color
-	bool isDemoVisible = true; // is the ImGui demo window visible?
 
 	// demo array for ImGui Combo (dropdown select)
 	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
@@ -49,10 +49,13 @@ private:
 	// array of Mesh Objects
 	std::vector<std::shared_ptr<Mesh>> meshes;
 
+	// array of Entity Objects
+	std::vector <std::shared_ptr<Entity>> entities;
+
 	// Game's Constant Buffer
 	Microsoft::WRL::ComPtr<ID3D11Buffer> constantBuffer;
 
 	// Buffer Struct to be mapped and modified by the UI
-	TintAndOffset tintAndOffset = {};
+	VertexShaderExternalData globalVsData = {};
 };
 

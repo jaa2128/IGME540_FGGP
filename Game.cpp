@@ -29,6 +29,9 @@
 // For the DirectX Math library
 using namespace DirectX;
 
+// Global direction variable for entities to use for now
+float direction = 1;
+
 // --------------------------------------------------------
 // The constructor is called after the window and graphics API
 // are initialized but before the game loop begins
@@ -77,7 +80,7 @@ Game::Game()
 	}
 
 	// First calculate the size of the external data as a multiple of 16
-	unsigned int sizeOfExternalData = sizeof(TintAndOffset);
+	unsigned int sizeOfExternalData = sizeof(VertexShaderExternalData);
 	sizeOfExternalData = MULTIPLEOF16(sizeOfExternalData);
 
 	// Describe the constant buffer
@@ -97,8 +100,7 @@ Game::Game()
 		constantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
 	);
 
-	tintAndOffset.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
-	tintAndOffset.posOffset = XMFLOAT3(0.0, 0.0, 0.0); // no offset, should be updated by UI
+	globalVsData.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
 
 }
 
@@ -281,6 +283,13 @@ void Game::CreateGeometry()
 	meshes.push_back(std::make_shared<Mesh>(vertices, indices, (unsigned int)ARRAYSIZE(vertices), (unsigned int)ARRAYSIZE(indices), "Triangle"));
 	meshes.push_back(std::make_shared<Mesh>(verticesJ, indicesJ, (unsigned int)ARRAYSIZE(verticesJ), (unsigned int)ARRAYSIZE(indicesJ), "Letter J"));
 	meshes.push_back(std::make_shared<Mesh>(verticesA, indicesA, (unsigned int)ARRAYSIZE(verticesA), (unsigned int)ARRAYSIZE(indicesA), "Letter A"));
+
+	// push game entities to the entity array
+	entities.push_back(std::make_shared<Entity>(meshes[0]));
+	entities.push_back(std::make_shared<Entity>(meshes[1]));
+	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
+	entities.push_back(std::make_shared<Entity>(meshes[1])); // Same Mesh
+	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
 }
 
 
@@ -305,6 +314,30 @@ void Game::Update(float deltaTime, float totalTime)
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
+
+	float scale = (float)sin(totalTime * 5) * 0.5f + 1.0f;
+
+
+	// Triangle
+	entities[0]->GetTransform()->SetScale(scale, scale, scale);
+	entities[0]->GetTransform()->Rotate(0, 0, deltaTime * 1.0f);
+
+	// J's
+	if (entities[1]->GetTransform()->GetPosition().x > 1.5f && direction == 1) {
+		direction *= -1;
+	}
+
+	if (entities[1]->GetTransform()->GetPosition().x < 0.0f && direction == -1) {
+		direction *= -1;
+	}
+
+	entities[1]->GetTransform()->MoveAbsolute(deltaTime * .5f * direction, 0, 0);
+	entities[3]->GetTransform()->MoveAbsolute(0, -deltaTime * .5f * direction, 0);
+
+	// A's
+	entities[2]->GetTransform()->Rotate(0, 0, deltaTime * .5f * direction);
+	entities[4]->GetTransform()->Rotate(0, 0, -deltaTime * .5f * direction);
+
 }
 
 
@@ -322,17 +355,27 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
-	// copy data from struct to the constant buffer we intend to use
-	D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
-	Graphics::Context->Map(constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+	// For each entity
+	for (auto& entity : entities) {
+		// Create the Shader Data struct to fill in
+		VertexShaderExternalData vsData = {};
 
-	// copy external data struct to the mapped buffer
-	memcpy(mappedBuffer.pData, &tintAndOffset, sizeof(tintAndOffset));
+		// set the tint to the global tint and matrix to entity World Matrix
+		vsData.colorTint = globalVsData.colorTint;
+		vsData.world = entity->GetTransform()->GetWorldMatrix();
 
-	Graphics::Context->Unmap(constantBuffer.Get(), 0);
+		// Copy the data we intend to use to the constant buffer
+		D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
+		Graphics::Context->Map(constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
 
-	for (auto& mesh : meshes) {
-		mesh->Draw();
+		// copy external data struct to the mapped buffer
+		memcpy(mappedBuffer.pData, &vsData, sizeof(globalVsData));
+
+		// Unmap the buffer
+		Graphics::Context->Unmap(constantBuffer.Get(), 0);
+
+		// Draw entity
+		entity->Draw();
 	}
 
 	// Frame END
@@ -371,10 +414,6 @@ void Game::RefreshUI(float deltaTime) {
 	// Determine new input capture
 	Input::SetKeyboardCapture(io.WantCaptureKeyboard);
 	Input::SetMouseCapture(io.WantCaptureMouse);
-
-	// Show the demo window if it is visible
-	if (isDemoVisible)
-		ImGui::ShowDemoWindow();
 }
 
 void Game::BuildUI()
@@ -397,11 +436,6 @@ void Game::BuildUI()
 			// Background Color Editor
 			ImGui::ColorEdit4("RGBA color editor", color);
 
-			// Demo Window Toggle Button
-			if (ImGui::Button("Show ImGui Demo Window")) {
-				isDemoVisible = !isDemoVisible;
-			}
-
 			// Ends this Tree
 			ImGui::TreePop();
 		}
@@ -422,12 +456,32 @@ void Game::BuildUI()
 			}
 			ImGui::TreePop();
 		}
+
+		if (ImGui::TreeNode("Scene Entities")) {
+			for (int i = 0; i < entities.size(); i++) {
+				ImGui::PushID(entities[i].get());
+
+				// Entity ID
+				if (ImGui::TreeNode("Entity Node", "Entity %d", i)) {
+					XMFLOAT3 pos = entities[i]->GetTransform()->GetPosition();
+					XMFLOAT3 rot = entities[i]->GetTransform()->GetPitchYawRoll();
+					XMFLOAT3 sca = entities[i]->GetTransform()->GetScale();
+
+					if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) entities[i]->GetTransform()->SetPosition(pos);
+					if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) entities[i]->GetTransform()->SetRotation(rot);
+					if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) entities[i]->GetTransform()->SetScale(sca);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
 	}
 
 	// Editor Collapsing Header
 	if (ImGui::CollapsingHeader("Editor")) {
-		ImGui::SliderFloat3("Offset", &tintAndOffset.posOffset.x, -1.0f, 1.0f);
-		ImGui::ColorEdit4("Color Tint", &tintAndOffset.colorTint.x);
+		ImGui::ColorEdit4("Color Tint", &globalVsData.colorTint.x);
 	}
 
 
