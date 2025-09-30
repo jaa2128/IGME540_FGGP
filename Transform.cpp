@@ -140,6 +140,27 @@ void Transform::MoveAbsolute(DirectX::XMFLOAT3 offset)
 	dirtyMatrices = true;
 }
 
+void Transform::MoveRelative(float x, float y, float z)
+{
+	// Get the offset and the current rotation Vector
+	DirectX::XMVECTOR offsetVec = DirectX::XMVectorSet(x, y, z, 0);
+	DirectX::XMVECTOR rotVec = DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&rotation));
+
+	// Do math to rotate the offset by the rotation to get the direction to move
+	DirectX::XMVECTOR dir = DirectX::XMVector3Rotate(offsetVec, rotVec);
+
+	// Add then store
+	DirectX::XMStoreFloat3(&position, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&position), dir));
+
+	// Matrix was changed
+	dirtyMatrices = true;
+}
+
+void Transform::MoveRelative(DirectX::XMFLOAT3 offset)
+{
+	MoveRelative(offset.x, offset.y, offset.z);
+}
+
 void Transform::Rotate(float pitch, float yaw, float roll)
 {
 	// create DirectX Math Types for the Transform's Position and the offset passed in
@@ -202,6 +223,54 @@ void Transform::Scale(DirectX::XMFLOAT3 _scale)
 
 	// Matrix was changed
 	dirtyMatrices = true;
+}
+
+DirectX::XMFLOAT3 Transform::GetRight()
+{
+	// Get the world right vector and the current rotation Vector
+	DirectX::XMVECTOR worldRightVec = DirectX::XMVectorSet(1, 0, 0, 0);
+	DirectX::XMVECTOR rotVec = DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&rotation));
+
+	// rotate the world right vector by the current rotation
+	DirectX::XMVECTOR rightVec = DirectX::XMVector3Rotate(worldRightVec, rotVec);
+
+	// store result
+	DirectX::XMFLOAT3 result;
+	DirectX::XMStoreFloat3(&result, rightVec);
+
+	return result;
+}
+
+DirectX::XMFLOAT3 Transform::GetUp()
+{
+	// Get the world right vector and the current rotation Vector
+	DirectX::XMVECTOR worldUpVec = DirectX::XMVectorSet(0, 1, 0, 0);
+	DirectX::XMVECTOR rotVec = DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&rotation));
+
+	// rotate the world right vector by the current rotation
+	DirectX::XMVECTOR upVec = DirectX::XMVector3Rotate(worldUpVec, rotVec);
+
+	// store result
+	DirectX::XMFLOAT3 result;
+	DirectX::XMStoreFloat3(&result, upVec);
+
+	return result;
+}
+
+DirectX::XMFLOAT3 Transform::GetForward()
+{
+	// Get the world right vector and the current rotation Vector
+	DirectX::XMVECTOR worldForwardVec = DirectX::XMVectorSet(0, 0, 1, 0);
+	DirectX::XMVECTOR rotVec = DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3(&rotation));
+
+	// rotate the world right vector by the current rotation
+	DirectX::XMVECTOR forwardVec = DirectX::XMVector3Rotate(worldForwardVec, rotVec);
+
+	// store result
+	DirectX::XMFLOAT3 result;
+	DirectX::XMStoreFloat3(&result, forwardVec);
+
+	return result;
 }
 
 void Transform::CalculateMatrices() {
