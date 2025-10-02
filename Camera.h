@@ -19,7 +19,7 @@ public:
 		float _fov,
 		float aspectRatio, 
 		float _nearClipDistance = 0.01f,
-		float _farClipDistance,
+		float _farClipDistance = 100.0f,
 		ProjectionType type = ProjectionType::PERSPECTIVE
 	);
 
@@ -42,7 +42,7 @@ public:
 	float GetNearClip();
 	void SetNearClip(float distance);
 
-	float GetFarCLip();
+	float GetFarClip();
 	void SetFarClip(float distance);
 
 	float GetOrthoGraphicWidth();

@@ -102,8 +102,8 @@ Game::Game()
 
 	globalVsData.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
 
-	// Create the camera
-	camera = std::make_shared<Camera>(
+	// Create the cameras
+	std::shared_ptr camera1 = std::make_shared<Camera>(
 		XMFLOAT3(0.0f, 0.0f, -5.0f), // position (not origin)
 		5.0f, // Camera Speed
 		0.002f, // Look Speed,
@@ -113,6 +113,34 @@ Game::Game()
 		100.0f, // Far Clip Distance
 		ProjectionType::PERSPECTIVE // Which Projection Type?
 	);
+
+	std::shared_ptr camera2 = std::make_shared<Camera>(
+		XMFLOAT3(-5.0f, 0.0f, -5.0f), // position (not origin)
+		5.0f, // Camera Speed
+		0.002f, // Look Speed,
+		XM_PIDIV2, // FOV (In Radians)
+		Window::AspectRatio(), // Aspect Ratio
+		0.01f, // Near Clip Distance
+		100.0f, // Far Clip Distance
+		ProjectionType::PERSPECTIVE // Which Projection Type?
+	);
+
+	std::shared_ptr camera3 = std::make_shared<Camera>(
+		XMFLOAT3(5.0f, 0.0f, -5.0f), // position (not origin)
+		5.0f, // Camera Speed
+		0.002f, // Look Speed,
+		XM_PI/6, // FOV (In Radians)
+		Window::AspectRatio(), // Aspect Ratio
+		0.01f, // Near Clip Distance
+		100.0f, // Far Clip Distance
+		ProjectionType::ORTHOGRAPHIC // Which Projection Type?,
+	);
+
+	cameras.push_back(camera1);
+	cameras.push_back(camera2);
+	cameras.push_back(camera3);
+
+	activeCameraIndex = 0;
 
 }
 
@@ -302,6 +330,12 @@ void Game::CreateGeometry()
 	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
 	entities.push_back(std::make_shared<Entity>(meshes[1])); // Same Mesh
 	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
+
+	entities[0]->GetTransform()->MoveAbsolute(0, 0, -1.0f);
+	entities[1]->GetTransform()->MoveAbsolute(0, 0, 1.0f);
+	entities[2]->GetTransform()->MoveAbsolute(0, 0, 1.1f);
+	entities[3]->GetTransform()->MoveAbsolute(0, 0, 1.2f);
+	entities[4]->GetTransform()->MoveAbsolute(0, 0, 1.5f);
 }
 
 
@@ -312,7 +346,11 @@ void Game::CreateGeometry()
 // --------------------------------------------------------
 void Game::OnResize()
 {
-	if (camera) camera->UpdateProjectionMatrix(Window::AspectRatio());
+	if (cameras[0]) {
+		for (auto& camera : cameras) {
+			camera->UpdateProjectionMatrix(Window::AspectRatio());
+		}
+	}
 }
 
 
@@ -350,7 +388,7 @@ void Game::Update(float deltaTime, float totalTime)
 	entities[2]->GetTransform()->Rotate(0, 0, deltaTime * .5f * direction);
 	entities[4]->GetTransform()->Rotate(0, 0, -deltaTime * .5f * direction);
 
-	camera->Update(deltaTime);
+	cameras[activeCameraIndex]->Update(deltaTime);
 
 }
 
@@ -377,8 +415,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		// set the tint to the global tint and matrix to entity World Matrix
 		vsData.colorTint = globalVsData.colorTint;
 		vsData.world = entity->GetTransform()->GetWorldMatrix();
-		vsData.viewMatrix = camera->GetView();
-		vsData.projectionMatrix = camera->GetProjection();
+		vsData.viewMatrix = cameras[activeCameraIndex]->GetView();
+		vsData.projectionMatrix = cameras[activeCameraIndex]->GetProjection();
 
 		// Copy the data we intend to use to the constant buffer
 		D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
@@ -498,6 +536,40 @@ void Game::BuildUI()
 	// Editor Collapsing Header
 	if (ImGui::CollapsingHeader("Editor")) {
 		ImGui::ColorEdit4("Color Tint", &globalVsData.colorTint.x);
+	}
+
+
+	// Camera Collapsing Header
+	if (ImGui::CollapsingHeader("Camera")) {
+		ImGui::RadioButton("Camera 1", &activeCameraIndex, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Camera 2", &activeCameraIndex, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Camera 3", &activeCameraIndex, 2);
+
+		if (ImGui::TreeNode("Camera Details")) {
+			ImGui::Text("Position: x-%.2f y-%.2f z-%.2f", 
+				cameras[activeCameraIndex]->GetTransform()->GetPosition().x,
+				cameras[activeCameraIndex]->GetTransform()->GetPosition().y,
+				cameras[activeCameraIndex]->GetTransform()->GetPosition().z
+				);
+			ImGui::Text("Fov (in degrees): %.0f", cameras[activeCameraIndex]->GetFieldOfView() * (180.0 / DirectX::XM_PI));
+			ImGui::Text("Near Clip Distance: %.1f", cameras[activeCameraIndex]->GetNearClip());
+			ImGui::Text("Far Clip Distance: %.1f", cameras[activeCameraIndex]->GetFarClip());
+			switch (cameras[activeCameraIndex]->GetProjectionType())
+			{
+			case PERSPECTIVE:
+				ImGui::Text("Projection Type: Perspective");
+				break;
+			case ORTHOGRAPHIC:
+				ImGui::Text("Projection Type: Orthographic");
+				ImGui::Text("Orthographic Width: %.2f", cameras[activeCameraIndex]->GetOrthoGraphicWidth());
+				break;
+			default:
+				break;
+			}
+			ImGui::TreePop();
+		}
 	}
 
 

@@ -155,7 +155,7 @@ void Camera::SetNearClip(float distance)
 	UpdateProjectionMatrix(aspectRatio);
 }
 
-float Camera::GetFarCLip()
+float Camera::GetFarClip()
 {
 	return farClipDistance;
 }

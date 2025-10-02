@@ -60,6 +60,9 @@ private:
 	VertexShaderExternalData globalVsData = {};
 
 	// Camera
-	std::shared_ptr<Camera> camera;
+	std::vector<std::shared_ptr<Camera>> cameras;
+	
+	// int to store active camera index in vector
+	int activeCameraIndex;
 };
 
