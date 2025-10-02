@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "BufferStructs.h"
 #include "Entity.h"
+#include "Camera.h"
 
 class Game
 {
@@ -57,5 +58,8 @@ private:
 
 	// Buffer Struct to be mapped and modified by the UI
 	VertexShaderExternalData globalVsData = {};
+
+	// Camera
+	std::shared_ptr<Camera> camera;
 };
 

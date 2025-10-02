@@ -102,6 +102,18 @@ Game::Game()
 
 	globalVsData.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
 
+	// Create the camera
+	camera = std::make_shared<Camera>(
+		XMFLOAT3(0.0f, 0.0f, -5.0f), // position (not origin)
+		5.0f, // Camera Speed
+		0.002f, // Look Speed,
+		XM_PIDIV4, // FOV (In Radians)
+		Window::AspectRatio(), // Aspect Ratio
+		0.01f, // Near Clip Distance
+		100.0f, // Far Clip Distance
+		ProjectionType::PERSPECTIVE // Which Projection Type?
+	);
+
 }
 
 
@@ -300,7 +312,7 @@ void Game::CreateGeometry()
 // --------------------------------------------------------
 void Game::OnResize()
 {
-
+	if (camera) camera->UpdateProjectionMatrix(Window::AspectRatio());
 }
 
 
@@ -338,6 +350,8 @@ void Game::Update(float deltaTime, float totalTime)
 	entities[2]->GetTransform()->Rotate(0, 0, deltaTime * .5f * direction);
 	entities[4]->GetTransform()->Rotate(0, 0, -deltaTime * .5f * direction);
 
+	camera->Update(deltaTime);
+
 }
 
 
@@ -363,6 +377,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		// set the tint to the global tint and matrix to entity World Matrix
 		vsData.colorTint = globalVsData.colorTint;
 		vsData.world = entity->GetTransform()->GetWorldMatrix();
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
 
 		// Copy the data we intend to use to the constant buffer
 		D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
