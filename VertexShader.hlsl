@@ -2,13 +2,11 @@
 // (b0); b = buffer; 0 = index
 // name is arbitrary
 // layout MUST match struct
-cbuffer TintAndOffset : register(b0)
+cbuffer VertexShaderData : register(b0)
 {
     matrix world;
     matrix view;
     matrix projection;
-    float4 tint;
-    
 }
 
 // Struct representing a single vertex worth of data
@@ -24,7 +22,8 @@ struct VertexShaderInput
 	//  |    |                |
 	//  v    v                v
 	float3 localPosition	: POSITION;     // XYZ position
-	float4 color			: COLOR;        // RGBA color
+	float2 uv				: TEXCOORD;     // Object UV
+    float3 normal			: NORMAL;		// Object Normals
 };
 
 // Struct representing the data we're sending down the pipeline
@@ -40,7 +39,8 @@ struct VertexToPixel
 	//  |    |                |
 	//  v    v                v
 	float4 screenPosition	: SV_POSITION;	// XYZW position (System Value Position)
-	float4 color			: COLOR;        // RGBA color
+    float2 uv				: TEXCOORD;		// Object UV
+    float3 normal			: NORMAL;		// Object Normals
 };
 
 // --------------------------------------------------------
@@ -54,6 +54,9 @@ VertexToPixel main( VertexShaderInput input )
 {
 	// Set up output struct
 	VertexToPixel output;
+	
+    output.uv = input.uv;
+    output.normal = input.normal;
 
 	// Here we're essentially passing the input position directly through to the next
 	// stage (rasterizer), though it needs to be a 4-component vector now.  
@@ -69,7 +72,6 @@ VertexToPixel main( VertexShaderInput input )
 	// Pass the color through 
 	// - The values will be interpolated per-pixel by the rasterizer
 	// - We don't need to alter it here, but we do need to send it to the pixel shader
-	output.color = input.color * tint;
 
 	// Whatever we return will make its way through the pipeline to the
 	// next programmable stage we're using (the pixel shader for now)

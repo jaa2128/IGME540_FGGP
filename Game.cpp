@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include <memory>
 #include "BufferStructs.h"
+#include "Material.h"
 
 #include <DirectXMath.h>
 
@@ -45,17 +46,10 @@ Game::Game()
 	ImGui_ImplWin32_Init(Window::Handle());
 	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
 
-	// Pick a style (uncomment one of these 3)
+	// Pick a style
 	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsLight();
-	//ImGui::StyleColorsClassic();
 
-	// Helper methods for loading shaders, creating some basic
-	// geometry to draw and some simple camera matrices.
-	//  - You'll be expanding and/or replacing these later
-	LoadShaders();
-	CreateGeometry();
-
+	LoadAssetsAndCreateEntities();
 
 	// Set initial graphics API state
 	//  - These settings persist until we change them
@@ -67,44 +61,52 @@ Game::Game()
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
 		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		ID3DBlob* vertexShaderBlob;
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		// Create an input layout 
+		//  - This describes the layout of data sent to a vertex shader
+		//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
+		//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
+		//  - Luckily, we already have that loaded (the vertex shader blob above)
+		{
+			D3D11_INPUT_ELEMENT_DESC inputElements[3] = {};
+
+			// Set up the first element - a position, which is 3 float values
+			inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
+			inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
+			inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
+
+			// Set up the second element - a UV Texcoord, which is 2 more float values
+			inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;					// 2x 32-bit floats
+			inputElements[1].SemanticName = "TEXCOORD";							// Match our vertex shader input!
+			inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+			// Set up the third element - a Normal, which is 3 more float values
+			inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;			    // 3x 32-bit floats
+			inputElements[2].SemanticName = "NORMAL";							// Match vertex shader input!
+			inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;  // After previous element
+			
+
+			// Create the input layout, verifying our description against actual shader code
+			Graphics::Device->CreateInputLayout(
+				inputElements,							// An array of descriptions
+				3,										// How many elements in that array?
+				vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
+				vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
+				inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
+		}
+
 		// Ensure the pipeline knows how to interpret all the numbers stored in
 		// the vertex buffer. For this course, all of your vertices will probably
 		// have the same layout, so we can just set this once at startup.
 		Graphics::Context->IASetInputLayout(inputLayout.Get());
-
-		// Set the active vertex and pixel shaders
-		//  - Once you start applying different shaders to different objects,
-		//    these calls will need to happen multiple times per frame
-		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
-		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
 
-	// First calculate the size of the external data as a multiple of 16
-	unsigned int sizeOfExternalData = sizeof(VertexShaderExternalData);
-	sizeOfExternalData = MULTIPLEOF16(sizeOfExternalData);
-
-	// Describe the constant buffer
-	D3D11_BUFFER_DESC cbDesc = {};
-	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
-	cbDesc.ByteWidth = sizeOfExternalData; // size of external data as a multiple of 16
-	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
-	cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
-
-	// Create the Buffer
-	Graphics::Device->CreateBuffer(&cbDesc, 0, constantBuffer.GetAddressOf());
-
-	// Bind the Constant Buffer to the Vertex Shader
-	Graphics::Context->VSSetConstantBuffers(
-		0, // which register to bind the buffer to 
-		1, // How many buffers
-		constantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
-	);
-
-	globalVsData.colorTint = XMFLOAT4(1.0, 1.0, 1.0, 1.0f); // no tint, should be updated by UI
+	CreateConstantBuffers();
 
 	// Create the cameras
 	std::shared_ptr camera1 = std::make_shared<Camera>(
-		XMFLOAT3(0.0f, 0.0f, -5.0f), // position (not origin)
+		XMFLOAT3(0.0f, 5.0f, -20.0f), // position (not origin)
 		5.0f, // Camera Speed
 		0.002f, // Look Speed,
 		XM_PIDIV4, // FOV (In Radians)
@@ -115,7 +117,7 @@ Game::Game()
 	);
 
 	std::shared_ptr camera2 = std::make_shared<Camera>(
-		XMFLOAT3(-5.0f, 0.0f, -5.0f), // position (not origin)
+		XMFLOAT3(-5.0f, 5.0f, -10.0f), // position (not origin)
 		5.0f, // Camera Speed
 		0.002f, // Look Speed,
 		XM_PIDIV2, // FOV (In Radians)
@@ -135,6 +137,8 @@ Game::Game()
 		100.0f, // Far Clip Distance
 		ProjectionType::ORTHOGRAPHIC // Which Projection Type?,
 	);
+
+	camera3->SetOrthoGraphicWidth(25);
 
 	cameras.push_back(camera1);
 	cameras.push_back(camera2);
@@ -160,182 +164,71 @@ Game::~Game()
 }
 
 
-// --------------------------------------------------------
-// Loads shaders from compiled shader object (.cso) files
-// and also created the Input Layout that describes our 
-// vertex data to the rendering pipeline. 
-// - Input Layout creation is done here because it must 
-//    be verified against vertex shader byte code
-// - We'll have that byte code already loaded below
-// --------------------------------------------------------
-void Game::LoadShaders()
+
+void Game::LoadAssetsAndCreateEntities()
 {
-	// BLOBs (or Binary Large OBjects) for reading raw data from external files
-	// - This is a simplified way of handling big chunks of external data
-	// - Literally just a big array of bytes read from a file
-	ID3DBlob* pixelShaderBlob;
-	ID3DBlob* vertexShaderBlob;
+	// load shaders
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPShader = LoadPixelShader(L"PixelShader.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> fancyPixelShader = LoadPixelShader(L"CustomPS.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> normalPreviewPS = LoadPixelShader(L"DebugNormalsPS.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> uvPreviewPS = LoadPixelShader(L"DebugUVsPS.cso");
 
-	// Loading shaders
-	//  - Visual Studio will compile our shaders at build time
-	//  - They are saved as .cso (Compiled Shader Object) files
-	//  - We need to load them when the application starts
-	{
-		// Read our compiled shader code files into blobs
-		// - Essentially just "open the file and plop its contents here"
-		// - Uses the custom FixPath() helper from Helpers.h to ensure relative paths
-		// - Note the "L" before the string - this tells the compiler the string uses wide characters
-		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), &pixelShaderBlob);
-		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
 
-		// Create the actual Direct3D shaders on the GPU
-		Graphics::Device->CreatePixelShader(
-			pixelShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
-			pixelShaderBlob->GetBufferSize(),		// How big is that data?
-			0,										// No classes in this shader
-			pixelShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+	// create materials from shaders
+	std::shared_ptr<Material> whiteMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> purpleMat = std::make_shared<Material>(XMFLOAT4(0.75, 0, 0.6, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> redMat = std::make_shared<Material>(XMFLOAT4(1, 0, 0, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> fancyMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), fancyPixelShader, basicVShader);
+	std::shared_ptr<Material> uvMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), uvPreviewPS, basicVShader);
+	std::shared_ptr<Material> normalMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), normalPreviewPS, basicVShader);
 
-		Graphics::Device->CreateVertexShader(
-			vertexShaderBlob->GetBufferPointer(),	// Get a pointer to the blob's contents
-			vertexShaderBlob->GetBufferSize(),		// How big is that data?
-			0,										// No classes in this shader
-			vertexShader.GetAddressOf());			// The address of the ID3D11VertexShader pointer
+	// create meshes
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cube.obj").c_str(), "Cube");
+	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cylinder.obj").c_str(), "Cylinder");
+	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/helix.obj").c_str(), "Helix");
+	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/quad.obj").c_str(), "Quad");
+	std::shared_ptr<Mesh> quad2SideMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/quad_double_sided.obj").c_str(), "2 Sided Quad");
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/sphere.obj").c_str(), "Sphere");
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/torus.obj").c_str(), "Torus");
+
+	// add meshes to the vector 
+	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, quadMesh, quad2SideMesh, sphereMesh, torusMesh });
+
+	// create entities
+	entities.push_back(std::make_shared<Entity>(cubeMesh, whiteMat));
+	entities.push_back(std::make_shared<Entity>(cylinderMesh, redMat));
+	entities.push_back(std::make_shared<Entity>(helixMesh, purpleMat));
+	entities.push_back(std::make_shared<Entity>(quadMesh, whiteMat));
+	entities.push_back(std::make_shared<Entity>(quad2SideMesh, redMat));
+	entities.push_back(std::make_shared<Entity>(sphereMesh, fancyMat));
+	entities.push_back(std::make_shared<Entity>(torusMesh, purpleMat));
+
+	// Adjust transforms
+	entities[0]->GetTransform()->MoveAbsolute(-9, 0, 0);
+	entities[1]->GetTransform()->MoveAbsolute(-6, 0, 0);
+	entities[2]->GetTransform()->MoveAbsolute(-3, 0, 0);
+	entities[3]->GetTransform()->MoveAbsolute(0, 0, 0);
+	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
+	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
+	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
+
+	// Create more entities using the UV and Normal Materials
+	int count = (int)entities.size();
+	for (int i = 0; i < count; i++) {
+		std::shared_ptr<Mesh> mesh = entities[i]->GetMesh();
+		std::shared_ptr<Entity> eUV = std::make_shared<Entity>(mesh, uvMat);
+		std::shared_ptr<Entity> eNormal = std::make_shared<Entity>(mesh, normalMat);
+
+		eUV->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
+		eUV->GetTransform()->MoveAbsolute(0, 3, 0);
+
+		eNormal->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
+		eNormal->GetTransform()->MoveAbsolute(0, 6, 0);
+
+		entities.push_back(eUV);
+		entities.push_back(eNormal);
 	}
-
-	// Create an input layout 
-	//  - This describes the layout of data sent to a vertex shader
-	//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
-	//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
-	//  - Luckily, we already have that loaded (the vertex shader blob above)
-	{
-		D3D11_INPUT_ELEMENT_DESC inputElements[2] = {};
-
-		// Set up the first element - a position, which is 3 float values
-		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
-		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
-		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
-
-		// Set up the second element - a color, which is 4 more float values
-		inputElements[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;			// 4x 32-bit floats
-		inputElements[1].SemanticName = "COLOR";							// Match our vertex shader input!
-		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
-
-		// Create the input layout, verifying our description against actual shader code
-		Graphics::Device->CreateInputLayout(
-			inputElements,							// An array of descriptions
-			2,										// How many elements in that array?
-			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
-			vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
-			inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
-	}
-}
-
-
-// --------------------------------------------------------
-// Creates the geometry we're going to draw
-// --------------------------------------------------------
-void Game::CreateGeometry()
-{
-
-	// Create some temporary variables to represent colors
-	// - Not necessary, just makes things more readable
-	XMFLOAT4 red = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-	XMFLOAT4 green = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
-	XMFLOAT4 blue = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-
-	// Set up the vertices of the triangle we would like to draw
-	// - We're going to copy this array, exactly as it exists in CPU memory
-	//    over to a Direct3D-controlled data structure on the GPU (the vertex buffer)
-	// - Note: Since we don't have a camera or really any concept of
-	//    a "3d world" yet, we're simply describing positions within the
-	//    bounds of how the rasterizer sees our screen: [-1 to +1] on X and Y
-	// - This means (0,0) is at the very center of the screen.
-	// - These are known as "Normalized Device Coordinates" or "Homogeneous 
-	//    Screen Coords", which are ways to describe a position without
-	//    knowing the exact size (in pixels) of the image/window/etc.  
-	// - Long story short: Resizing the window also resizes the triangle,
-	//    since we're describing the triangle in terms of the window itself
-	Vertex vertices[] =
-	{
-		{ XMFLOAT3(+0.0f, +0.5f, +0.0f), red },
-		{ XMFLOAT3(+0.5f, -0.5f, +0.0f), blue },
-		{ XMFLOAT3(-0.5f, -0.5f, +0.0f), green },
-	};
-
-	// Set up indices, which tell us which vertices to use and in which order
-	// - This is redundant for just 3 vertices, but will be more useful later
-	// - Indices are technically not required if the vertices are in the buffer 
-	//    in the correct order and each one will be used exactly once
-	// - But just to see how it's done...
-	unsigned int indices[] = { 0, 1, 2 };
-
-
-	// Vertices of the letter J shape
-	Vertex verticesJ[] = {
-		{ XMFLOAT3(-0.9f, +0.9f, +0.0f), red}, //0
-		{ XMFLOAT3(-0.9f, +0.8f, +0.0f), red}, //1
-		{ XMFLOAT3(-0.75f, +0.9f, +0.0f), red}, //2
-		{ XMFLOAT3(-0.75f, +0.8f, +0.0f), red}, //3
-		{ XMFLOAT3(-0.65f, +0.9f, +0.0f), }, //4
-		{ XMFLOAT3(-0.65f, +0.8f, +0.0f), }, //5
-		{ XMFLOAT3(-0.55f, +0.9f, +0.0f), }, //6
-		{ XMFLOAT3(-0.55f, +0.8f, +0.0f), }, //7
-		{ XMFLOAT3(-0.65f, +0.6f, +0.0f), }, //8
-		{ XMFLOAT3(-0.75f, +0.7f, +0.0f), red}, //9
-		{ XMFLOAT3(-0.85f, +0.6f, +0.0f), red}, //10
-		{ XMFLOAT3(-0.85f, +0.7f, +0.0f), red}, //11
-	};
-
-	// Indices of the letter J shape
-	unsigned int indicesJ[] = {
-		1, 0, 2,
-		1, 2, 3,
-		3, 2, 5,
-		5, 2, 4,
-		5, 4, 6,
-		5, 6, 7,
-		9, 3, 5,
-		8, 9, 5,
-		10, 9, 8,
-		10, 11, 9
-	};
-
-
-	// Vertices of the letter A Shape
-	Vertex verticesA[] = {
-		{ XMFLOAT3(-0.45f, +0.6f, +0.0f),  }, //0
-		{ XMFLOAT3(-0.3f, +0.9f, +0.0f),  }, //1
-		{ XMFLOAT3(-0.3f, +0.8f, +0.0f),  }, //2
-		{ XMFLOAT3(-0.35f, +0.6f, +0.0f),  }, //3
-		{ XMFLOAT3(-0.15f, +0.6f, +0.0f), red }, //4
-		{ XMFLOAT3(-0.25f, +0.6f, +0.0f), red }, //5
-	};
-
-	// Indices of the letter A Shape
-	unsigned int indicesA[] = {
-		0, 1, 2,
-		2, 3, 0,
-		2, 1, 4,
-		5, 2, 4
-	};
-
-	// push each mesh to the meshes array
-	meshes.push_back(std::make_shared<Mesh>(vertices, indices, (unsigned int)ARRAYSIZE(vertices), (unsigned int)ARRAYSIZE(indices), "Triangle"));
-	meshes.push_back(std::make_shared<Mesh>(verticesJ, indicesJ, (unsigned int)ARRAYSIZE(verticesJ), (unsigned int)ARRAYSIZE(indicesJ), "Letter J"));
-	meshes.push_back(std::make_shared<Mesh>(verticesA, indicesA, (unsigned int)ARRAYSIZE(verticesA), (unsigned int)ARRAYSIZE(indicesA), "Letter A"));
-
-	// push game entities to the entity array
-	entities.push_back(std::make_shared<Entity>(meshes[0]));
-	entities.push_back(std::make_shared<Entity>(meshes[1]));
-	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
-	entities.push_back(std::make_shared<Entity>(meshes[1])); // Same Mesh
-	entities.push_back(std::make_shared<Entity>(meshes[2])); // Same Mesh
-
-	entities[0]->GetTransform()->MoveAbsolute(0, 0, -1.0f);
-	entities[1]->GetTransform()->MoveAbsolute(0, 0, 1.0f);
-	entities[2]->GetTransform()->MoveAbsolute(0, 0, 1.1f);
-	entities[3]->GetTransform()->MoveAbsolute(0, 0, 1.2f);
-	entities[4]->GetTransform()->MoveAbsolute(0, 0, 1.5f);
 }
 
 
@@ -365,30 +258,13 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
-	float scale = (float)sin(totalTime * 5) * 0.5f + 1.0f;
-
-
-	// Triangle
-	entities[0]->GetTransform()->SetScale(scale, scale, scale);
-	entities[0]->GetTransform()->Rotate(0, 0, deltaTime * 1.0f);
-
-	// J's
-	if (entities[1]->GetTransform()->GetPosition().x > 1.5f && direction == 1) {
-		direction *= -1;
+	for (auto& entity : entities) {
+		entity->GetTransform()->Rotate(0, deltaTime, 0);
 	}
 
-	if (entities[1]->GetTransform()->GetPosition().x < 0.0f && direction == -1) {
-		direction *= -1;
-	}
-
-	entities[1]->GetTransform()->MoveAbsolute(deltaTime * .5f * direction, 0, 0);
-	entities[3]->GetTransform()->MoveAbsolute(0, -deltaTime * .5f * direction, 0);
-
-	// A's
-	entities[2]->GetTransform()->Rotate(0, 0, deltaTime * .5f * direction);
-	entities[4]->GetTransform()->Rotate(0, 0, -deltaTime * .5f * direction);
 
 	cameras[activeCameraIndex]->Update(deltaTime);
+	globalPsData.time = totalTime;
 
 }
 
@@ -411,22 +287,35 @@ void Game::Draw(float deltaTime, float totalTime)
 	for (auto& entity : entities) {
 		// Create the Shader Data struct to fill in
 		VertexShaderExternalData vsData = {};
+		PixelShaderExternalData psData = {};
 
-		// set the tint to the global tint and matrix to entity World Matrix
-		vsData.colorTint = globalVsData.colorTint;
+		// set the world, view, and projection matrices
 		vsData.world = entity->GetTransform()->GetWorldMatrix();
 		vsData.viewMatrix = cameras[activeCameraIndex]->GetView();
 		vsData.projectionMatrix = cameras[activeCameraIndex]->GetProjection();
 
 		// Copy the data we intend to use to the constant buffer
 		D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
-		Graphics::Context->Map(constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+		Graphics::Context->Map(vsConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
 
 		// copy external data struct to the mapped buffer
-		memcpy(mappedBuffer.pData, &vsData, sizeof(globalVsData));
+		memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
 
-		// Unmap the buffer
-		Graphics::Context->Unmap(constantBuffer.Get(), 0);
+		// Unmap the buffer then do same for Pixel Shader
+		Graphics::Context->Unmap(vsConstantBuffer.Get(), 0);
+
+		// set data
+		psData.colorTint = entity->GetMaterial()->GetColorTint();
+		psData.time = globalPsData.time;
+
+		// copy the data we intend to use
+		Graphics::Context->Map(psConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+
+		// copy data to mappedBuffer
+		memcpy(mappedBuffer.pData, &psData, sizeof(psData));
+		
+		// unmap the buffer
+		Graphics::Context->Unmap(psConstantBuffer.Get(), 0);
 
 		// Draw entity
 		entity->Draw();
@@ -535,7 +424,7 @@ void Game::BuildUI()
 
 	// Editor Collapsing Header
 	if (ImGui::CollapsingHeader("Editor")) {
-		ImGui::ColorEdit4("Color Tint", &globalVsData.colorTint.x);
+		//ImGui::ColorEdit4("Color Tint", &globalVsData.colorTint.x);
 	}
 
 
@@ -575,5 +464,88 @@ void Game::BuildUI()
 
 	ImGui::End();
 
+}
+
+void Game::CreateConstantBuffers()
+{
+	// First calculate the size of the vertex external data as a multiple of 16
+	unsigned int sizeOfVsExternalData = sizeof(VertexShaderExternalData);
+	sizeOfVsExternalData = MULTIPLEOF16(sizeOfVsExternalData);
+
+	// Describe the constant buffer for the Vertex Shader
+	{
+		D3D11_BUFFER_DESC cbDesc = {};
+		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
+		cbDesc.ByteWidth = sizeOfVsExternalData; // size of external data as a multiple of 16
+		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
+		cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
+
+		// Create the Buffer
+		Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
+
+		// Bind the Constant Buffer to the Vertex Shader
+		Graphics::Context->VSSetConstantBuffers(
+			0, // which register to bind the buffer to 
+			1, // How many buffers
+			vsConstantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
+		);
+	}
+
+	// calculate the size of the pixel shader external data as a multiple of 16
+	unsigned int sizeOfPsExternalData = sizeof(PixelShaderExternalData);
+	sizeOfPsExternalData = MULTIPLEOF16(sizeOfPsExternalData);
+
+	// Describe the constant buffer for the Pixel Shader
+	{
+		D3D11_BUFFER_DESC cbDesc = {};
+		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
+		cbDesc.ByteWidth = sizeOfPsExternalData; // size of external data as a multiple of 16
+		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
+		cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
+
+		// Create the Buffer
+		Graphics::Device->CreateBuffer(&cbDesc, 0, psConstantBuffer.GetAddressOf());
+
+		// Bind the Constant Buffer to the Vertex Shader
+		Graphics::Context->PSSetConstantBuffers(
+			0, // which register to bind the buffer to 
+			1, // How many buffers
+			psConstantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
+		);
+	}
+}
+
+Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const std::wstring& fileName)
+{
+	// Read the file to a blob
+	ID3DBlob* pixelShaderBlob;
+	D3DReadFileToBlob(FixPath(fileName).c_str(), &pixelShaderBlob);
+
+	// Create the shader and return it
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
+	Graphics::Device->CreatePixelShader(
+		pixelShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		pixelShaderBlob->GetBufferSize(),		// How big is that data?
+		0,										// No classes in this shader
+		pixelShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+
+	return pixelShader;
+}
+
+Microsoft::WRL::ComPtr<ID3D11VertexShader> Game::LoadVertexShader(const std::wstring& fileName)
+{
+	// Read the file to a blob
+	ID3DBlob* vertexShaderBlob;
+	D3DReadFileToBlob(FixPath(fileName).c_str(), &vertexShaderBlob);
+
+	// Create the shader and return it
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	Graphics::Device->CreateVertexShader(
+		vertexShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		vertexShaderBlob->GetBufferSize(),		// How big is that data?
+		0,										// No classes in this shader
+		vertexShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+
+	return vertexShader;
 }
 

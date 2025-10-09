@@ -16,6 +16,7 @@ public:
 	/// <param name="indices">Array of Indices used by Mesh</param>
 	/// <param name="numVertices">Number of Vertices in Array</param>
 	Mesh(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices, const char* _name);
+	Mesh(const char* fileName, const char* _name);
 	~Mesh();
 
 	// Getters for Vertex and Index Buffers
@@ -35,6 +36,7 @@ public:
 
 
 private:
+	void CreateBuffers(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices);
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer; // Vertex Buffer
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer; // Index Buffer
 

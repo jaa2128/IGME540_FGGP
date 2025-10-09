@@ -8,6 +8,7 @@
 #include "BufferStructs.h"
 #include "Entity.h"
 #include "Camera.h"
+#include <string>
 
 class Game
 {
@@ -26,10 +27,13 @@ public:
 private:
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
-	void LoadShaders();
-	void CreateGeometry();
+	void LoadAssetsAndCreateEntities();
 	void RefreshUI(float deltaTime);
 	void BuildUI();
+	void CreateConstantBuffers();
+
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> LoadPixelShader(const std::wstring& fileName);
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> LoadVertexShader(const std::wstring& fileName);
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the
@@ -37,8 +41,6 @@ private:
 	//  - More info here: https://github.com/Microsoft/DirectXTK/wiki/ComPtr
 
 	// Shaders and shader-related constructs
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 
 	// Variables that must persist between frames
@@ -54,10 +56,12 @@ private:
 	std::vector <std::shared_ptr<Entity>> entities;
 
 	// Game's Constant Buffer
-	Microsoft::WRL::ComPtr<ID3D11Buffer> constantBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> psConstantBuffer;
 
 	// Buffer Struct to be mapped and modified by the UI
 	VertexShaderExternalData globalVsData = {};
+	PixelShaderExternalData globalPsData = {};
 
 	// Camera
 	std::vector<std::shared_ptr<Camera>> cameras;
