@@ -35,7 +35,7 @@ void Camera::UpdateProjectionMatrix(float _aspectRatio)
 	aspectRatio = _aspectRatio;
 
 	// Create projection Matrix 
-	DirectX::XMMATRIX _projectionMatrix;
+	DirectX::XMMATRIX _projectionMatrix = DirectX::XMMatrixIdentity();
 
 	// depending on type use different matrix/parameters
 	switch (projectionType)
