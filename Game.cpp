@@ -324,10 +324,12 @@ void Game::Draw(float deltaTime, float totalTime)
 		// set data
 		psData.colorTint = entity->GetMaterial()->GetColorTint();
 		psData.time = globalPsData.time;
+		// Draw entity
+		entity->GetMaterial()->BindTexturesAndSamplers();
 
 		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
-		// Draw entity
+		
 		entity->Draw();
 	}
 

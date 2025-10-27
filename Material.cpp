@@ -1,4 +1,5 @@
 #include "Material.h"
+#include "Graphics.h"
 
 Material::Material(DirectX::XMFLOAT4 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader) : colorTint(_colorTint), pixelShader(_pixelShader), 
@@ -49,4 +50,15 @@ void Material::AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11Sh
 void Material::AddSampler(unsigned int index, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler)
 {
     samplers.insert({ index, sampler });
+}
+
+void Material::BindTexturesAndSamplers()
+{
+    for (auto& t : textureSRVs) {
+        Graphics::Context->PSSetShaderResources(t.first, 1, t.second.GetAddressOf()); 
+    }
+
+    for (auto& s : samplers) { 
+        Graphics::Context->PSSetSamplers(s.first, 1, s.second.GetAddressOf()); 
+    }
 }
