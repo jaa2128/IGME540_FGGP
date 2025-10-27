@@ -10,6 +10,7 @@
 #include "Material.h"
 
 #include <DirectXMath.h>
+#include "WICTextureLoader.h"
 
 
 #include "ImGui/imgui.h"
@@ -102,8 +103,6 @@ Game::Game()
 		Graphics::Context->IASetInputLayout(inputLayout.Get());
 	}
 
-	CreateConstantBuffers();
-
 	// Create the cameras
 	std::shared_ptr camera1 = std::make_shared<Camera>(
 		XMFLOAT3(0.0f, 5.0f, -20.0f), // position (not origin)
@@ -167,6 +166,27 @@ Game::~Game()
 
 void Game::LoadAssetsAndCreateEntities()
 {
+	// create sampler
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
+	D3D11_SAMPLER_DESC sampDesc = {};
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP; // What happens outside the 0-1 uv range?
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;		// How do we handle sampling "between" pixels?
+	sampDesc.MaxAnisotropy = 16;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	Graphics::Device->CreateSamplerState(&sampDesc, samplerState.GetAddressOf());
+
+	// load textures
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
+
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
+		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, &woodSRV);
+
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
+		FixPath(L"../../Assets/Textures/checkered_pavement_tiles.png").c_str(), 0, &tilesSRV);
+
 	// load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPShader = LoadPixelShader(L"PixelShader.cso");
@@ -176,9 +196,14 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// create materials from shaders
-	std::shared_ptr<Material> whiteMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
-	std::shared_ptr<Material> purpleMat = std::make_shared<Material>(XMFLOAT4(0.75, 0, 0.6, 1), basicPShader, basicVShader);
-	std::shared_ptr<Material> redMat = std::make_shared<Material>(XMFLOAT4(1, 0, 0, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
+	woodMat->AddTextureSRV(0, woodSRV);
+	woodMat->AddSampler(0, samplerState);
+
+	std::shared_ptr<Material> tileMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
+	tileMat->AddTextureSRV(0, tilesSRV);
+	tileMat->AddSampler(0, samplerState);
+
 	std::shared_ptr<Material> fancyMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), fancyPixelShader, basicVShader);
 	std::shared_ptr<Material> uvMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), uvPreviewPS, basicVShader);
 	std::shared_ptr<Material> normalMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), normalPreviewPS, basicVShader);
@@ -196,13 +221,13 @@ void Game::LoadAssetsAndCreateEntities()
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, quadMesh, quad2SideMesh, sphereMesh, torusMesh });
 
 	// create entities
-	entities.push_back(std::make_shared<Entity>(cubeMesh, whiteMat));
-	entities.push_back(std::make_shared<Entity>(cylinderMesh, redMat));
-	entities.push_back(std::make_shared<Entity>(helixMesh, purpleMat));
-	entities.push_back(std::make_shared<Entity>(quadMesh, whiteMat));
-	entities.push_back(std::make_shared<Entity>(quad2SideMesh, redMat));
+	entities.push_back(std::make_shared<Entity>(cubeMesh, woodMat));
+	entities.push_back(std::make_shared<Entity>(cylinderMesh, woodMat));
+	entities.push_back(std::make_shared<Entity>(helixMesh, woodMat));
+	entities.push_back(std::make_shared<Entity>(quadMesh, tileMat));
+	entities.push_back(std::make_shared<Entity>(quad2SideMesh, tileMat));
 	entities.push_back(std::make_shared<Entity>(sphereMesh, fancyMat));
-	entities.push_back(std::make_shared<Entity>(torusMesh, purpleMat));
+	entities.push_back(std::make_shared<Entity>(torusMesh, tileMat));
 
 	// Adjust transforms
 	entities[0]->GetTransform()->MoveAbsolute(-9, 0, 0);
@@ -294,28 +319,13 @@ void Game::Draw(float deltaTime, float totalTime)
 		vsData.viewMatrix = cameras[activeCameraIndex]->GetView();
 		vsData.projectionMatrix = cameras[activeCameraIndex]->GetProjection();
 
-		// Copy the data we intend to use to the constant buffer
-		D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
-		Graphics::Context->Map(vsConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
-
-		// copy external data struct to the mapped buffer
-		memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
-
-		// Unmap the buffer then do same for Pixel Shader
-		Graphics::Context->Unmap(vsConstantBuffer.Get(), 0);
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
 		// set data
 		psData.colorTint = entity->GetMaterial()->GetColorTint();
 		psData.time = globalPsData.time;
 
-		// copy the data we intend to use
-		Graphics::Context->Map(psConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
-
-		// copy data to mappedBuffer
-		memcpy(mappedBuffer.pData, &psData, sizeof(psData));
-		
-		// unmap the buffer
-		Graphics::Context->Unmap(psConstantBuffer.Get(), 0);
+		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 		// Draw entity
 		entity->Draw();
@@ -466,54 +476,6 @@ void Game::BuildUI()
 
 }
 
-void Game::CreateConstantBuffers()
-{
-	// First calculate the size of the vertex external data as a multiple of 16
-	unsigned int sizeOfVsExternalData = sizeof(VertexShaderExternalData);
-	sizeOfVsExternalData = MULTIPLEOF16(sizeOfVsExternalData);
-
-	// Describe the constant buffer for the Vertex Shader
-	{
-		D3D11_BUFFER_DESC cbDesc = {};
-		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
-		cbDesc.ByteWidth = sizeOfVsExternalData; // size of external data as a multiple of 16
-		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
-		cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
-
-		// Create the Buffer
-		Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
-
-		// Bind the Constant Buffer to the Vertex Shader
-		Graphics::Context->VSSetConstantBuffers(
-			0, // which register to bind the buffer to 
-			1, // How many buffers
-			vsConstantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
-		);
-	}
-
-	// calculate the size of the pixel shader external data as a multiple of 16
-	unsigned int sizeOfPsExternalData = sizeof(PixelShaderExternalData);
-	sizeOfPsExternalData = MULTIPLEOF16(sizeOfPsExternalData);
-
-	// Describe the constant buffer for the Pixel Shader
-	{
-		D3D11_BUFFER_DESC cbDesc = {};
-		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // Binds it to the pipeline as constant buffer
-		cbDesc.ByteWidth = sizeOfPsExternalData; // size of external data as a multiple of 16
-		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // C++ will be writing data to the buffer
-		cbDesc.Usage = D3D11_USAGE_DYNAMIC; // is a dynamic buffer because we are changing data 
-
-		// Create the Buffer
-		Graphics::Device->CreateBuffer(&cbDesc, 0, psConstantBuffer.GetAddressOf());
-
-		// Bind the Constant Buffer to the Vertex Shader
-		Graphics::Context->PSSetConstantBuffers(
-			0, // which register to bind the buffer to 
-			1, // How many buffers
-			psConstantBuffer.GetAddressOf() // the address of buffers (if there is multiple, get the array)
-		);
-	}
-}
 
 Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const std::wstring& fileName)
 {

@@ -39,3 +39,14 @@ void Material::SetVertexShader(Microsoft::WRL::ComPtr<ID3D11VertexShader> _verte
 {
     vertexShader = _vertexShader;
 }
+
+void Material::AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)
+{
+    textureSRVs.insert({ index, srv });
+}
+
+
+void Material::AddSampler(unsigned int index, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler)
+{
+    samplers.insert({ index, sampler });
+}

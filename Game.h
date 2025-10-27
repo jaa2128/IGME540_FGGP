@@ -30,7 +30,6 @@ private:
 	void LoadAssetsAndCreateEntities();
 	void RefreshUI(float deltaTime);
 	void BuildUI();
-	void CreateConstantBuffers();
 
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> LoadPixelShader(const std::wstring& fileName);
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> LoadVertexShader(const std::wstring& fileName);
@@ -54,10 +53,6 @@ private:
 
 	// array of Entity Objects
 	std::vector <std::shared_ptr<Entity>> entities;
-
-	// Game's Constant Buffer
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> psConstantBuffer;
 
 	// Buffer Struct to be mapped and modified by the UI
 	VertexShaderExternalData globalVsData = {};

@@ -82,8 +82,8 @@ float2 tile(float2 uv, float zoom, float time)
 float boxShape(float2 uv, float2 size)
 {
     float2 halfSize = float2(0.5, 0.5) - size * 0.5;
-    float2 edge1 = smoothstep(halfSize, halfSize, uv);
-    float2 edge2 = smoothstep(halfSize, halfSize, 1.0 - uv);
+    float2 edge1 = step(halfSize, uv);
+    float2 edge2 = step(halfSize, 1.0 - uv);
     return edge1.x * edge1.y * edge2.x * edge2.y;
 
 }
