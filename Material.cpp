@@ -1,15 +1,30 @@
 #include "Material.h"
 #include "Graphics.h"
 
-Material::Material(DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
+Material::Material(const char* _name, DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader, DirectX::XMFLOAT2 _uvScale, 
     DirectX::XMFLOAT2 _uvOffset) : colorTint(_colorTint), pixelShader(_pixelShader),
-    vertexShader(_vertexShader), uvScale(_uvScale), uvOffset(_uvOffset)
+    vertexShader(_vertexShader), uvScale(_uvScale), uvOffset(_uvOffset), name(_name)
 {
 }
 
 Material::~Material()
 {
+}
+
+const char* Material::GetName()
+{
+    return name;
+}
+
+std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& Material::GetTextureSRVMap()
+{
+    return textureSRVs;
+}
+
+std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& Material::GetSamplerMap()
+{
+    return samplers;
 }
 
 DirectX::XMFLOAT3 Material::GetColorTint()

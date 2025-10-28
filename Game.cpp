@@ -180,12 +180,19 @@ void Game::LoadAssetsAndCreateEntities()
 	// load textures
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> crackSRV;
 
+	// Wood
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
 		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, woodSRV.GetAddressOf());
 
+	// Tiles
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
 		FixPath(L"../../Assets/Textures/checkered_pavement_tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
+
+	// Crack
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/grayscale_crack.png").c_str(), 0, crackSRV.GetAddressOf());
 
 	// load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
@@ -193,20 +200,24 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> fancyPixelShader = LoadPixelShader(L"CustomPS.cso");
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> normalPreviewPS = LoadPixelShader(L"DebugNormalsPS.cso");
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> uvPreviewPS = LoadPixelShader(L"DebugUVsPS.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> twoTexPShader = LoadPixelShader(L"TwoTexturePS.cso");
 
 
 	// create materials from shaders
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, DirectX::XMFLOAT2(5, 5));
 	woodMat->AddTextureSRV(0, woodSRV);
 	woodMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> tileMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> woodCrackMat = std::make_shared<Material>("Cracked Wood", XMFLOAT3(1, 1, 1), twoTexPShader, basicVShader);
+	woodCrackMat->AddTextureSRV(0, woodSRV);
+	woodCrackMat->AddTextureSRV(1, crackSRV);
+	woodCrackMat->AddSampler(0, samplerState);
+
+	std::shared_ptr<Material> tileMat = std::make_shared<Material>("Tiles",XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
 	tileMat->AddTextureSRV(0, tilesSRV);
 	tileMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> fancyMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), fancyPixelShader, basicVShader);
-	std::shared_ptr<Material> uvMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), uvPreviewPS, basicVShader);
-	std::shared_ptr<Material> normalMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), normalPreviewPS, basicVShader);
+	std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), fancyPixelShader, basicVShader);
 
 	// create meshes
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cube.obj").c_str(), "Cube");
@@ -221,7 +232,7 @@ void Game::LoadAssetsAndCreateEntities()
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, quadMesh, quad2SideMesh, sphereMesh, torusMesh });
 
 	// create entities
-	entities.push_back(std::make_shared<Entity>(cubeMesh, woodMat));
+	entities.push_back(std::make_shared<Entity>(cubeMesh, woodCrackMat));
 	entities.push_back(std::make_shared<Entity>(cylinderMesh, woodMat));
 	entities.push_back(std::make_shared<Entity>(helixMesh, woodMat));
 	entities.push_back(std::make_shared<Entity>(quadMesh, tileMat));
@@ -237,23 +248,6 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
 	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
 	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
-
-	// Create more entities using the UV and Normal Materials
-	int count = (int)entities.size();
-	for (int i = 0; i < count; i++) {
-		std::shared_ptr<Mesh> mesh = entities[i]->GetMesh();
-		std::shared_ptr<Entity> eUV = std::make_shared<Entity>(mesh, uvMat);
-		std::shared_ptr<Entity> eNormal = std::make_shared<Entity>(mesh, normalMat);
-
-		eUV->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
-		eUV->GetTransform()->MoveAbsolute(0, 3, 0);
-
-		eNormal->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
-		eNormal->GetTransform()->MoveAbsolute(0, 6, 0);
-
-		entities.push_back(eUV);
-		entities.push_back(eNormal);
-	}
 }
 
 
@@ -425,6 +419,27 @@ void Game::BuildUI()
 					if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) entities[i]->GetTransform()->SetPosition(pos);
 					if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) entities[i]->GetTransform()->SetRotation(rot);
 					if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) entities[i]->GetTransform()->SetScale(sca);
+
+					if (ImGui::TreeNode("Material Node", "Material: %s", entities[i]->GetMaterial()->GetName())) {
+						// Color tint editing
+						XMFLOAT3 tint = entities[i]->GetMaterial()->GetColorTint();
+						if (ImGui::ColorEdit3("Color Tint", &tint.x))
+							entities[i]->GetMaterial()->SetColorTint(tint);
+
+						// UV manipulations
+						XMFLOAT2 uvScale = entities[i]->GetMaterial()->GetUVScale();
+						XMFLOAT2 uvOffset = entities[i]->GetMaterial()->GetUVOffset();
+						if (ImGui::DragFloat2("UV Scale", &uvScale.x, 0.25f)) entities[i]->GetMaterial()->SetUVScale(uvScale);
+						if (ImGui::DragFloat2("UV Offset", &uvOffset.x, 0.05f)) entities[i]->GetMaterial()->SetUVOffset(uvOffset);
+
+						// Textures
+						for (auto& it : entities[i]->GetMaterial()->GetTextureSRVMap())
+						{
+							ImGui::Text("Texture %d", it.first);
+							ImGui::Image(it.second.Get(), ImVec2(256, 256));
+						}
+						ImGui::TreePop();
+					}
 
 					ImGui::TreePop();
 				}

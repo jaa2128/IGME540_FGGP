@@ -10,8 +10,10 @@
 // layout MUST match struct
 cbuffer PixelShaderData : register(b0)
 {
-    float4 colorTint;
+    float3 colorTint;
     float time;
+    float2 uvScale;
+    float2 uvOffset;
 }
 
 

@@ -7,7 +7,7 @@
 class Material
 {
 public:
-	Material(DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
+	Material(const char* _name, DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
 		Microsoft::WRL::ComPtr<ID3D11VertexShader>  _vertexShader, 
 		DirectX::XMFLOAT2 _uvScale = DirectX::XMFLOAT2(1, 1), DirectX::XMFLOAT2 _uvOffset = DirectX::XMFLOAT2(0, 0));
 	~Material();
@@ -18,6 +18,9 @@ public:
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> GetVertexShader();
 	DirectX::XMFLOAT2 GetUVOffset();
 	DirectX::XMFLOAT2 GetUVScale();
+	const char* GetName();
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& GetTextureSRVMap();
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& GetSamplerMap();
 
 	// Setters 
 	void SetColorTint(DirectX::XMFLOAT3 _colorTint);
@@ -35,6 +38,7 @@ private:
 	DirectX::XMFLOAT3 colorTint;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	const char* name;
 
 	// Texture Stuff
 	DirectX::XMFLOAT2 uvOffset;
