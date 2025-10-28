@@ -6,7 +6,10 @@ SamplerState BasicSampler : register(s0); // "s" registers for samplers
 // layout MUST match struct
 cbuffer PixelShaderData : register(b0)
 {
-    float4 colorTint;
+    float3 colorTint;
+    float time;
+    float2 uvScale;
+    float2 uvOffset;
 }
 
 // Struct representing the data we expect to receive from earlier pipeline stages
@@ -37,6 +40,8 @@ struct VertexToPixel
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {
+	// Adjust UV coords
+    input.uv = input.uv * uvScale + uvOffset;
 	// Just return the input color
 	// - This color (like most values passing through the rasterizer) is 
 	//   interpolated for each pixel between the corresponding vertices 

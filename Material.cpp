@@ -1,9 +1,10 @@
 #include "Material.h"
 #include "Graphics.h"
 
-Material::Material(DirectX::XMFLOAT4 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader) : colorTint(_colorTint), pixelShader(_pixelShader), 
-    vertexShader(_vertexShader)
+Material::Material(DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader, DirectX::XMFLOAT2 _uvScale, 
+    DirectX::XMFLOAT2 _uvOffset) : colorTint(_colorTint), pixelShader(_pixelShader),
+    vertexShader(_vertexShader), uvScale(_uvScale), uvOffset(_uvOffset)
 {
 }
 
@@ -11,7 +12,7 @@ Material::~Material()
 {
 }
 
-DirectX::XMFLOAT4 Material::GetColorTint()
+DirectX::XMFLOAT3 Material::GetColorTint()
 {
     return colorTint;
 }
@@ -26,7 +27,17 @@ Microsoft::WRL::ComPtr<ID3D11VertexShader> Material::GetVertexShader()
     return vertexShader;
 }
 
-void Material::SetColorTint(DirectX::XMFLOAT4 _colorTint)
+DirectX::XMFLOAT2 Material::GetUVOffset()
+{
+    return uvOffset;
+}
+
+DirectX::XMFLOAT2 Material::GetUVScale()
+{
+    return uvScale;
+}
+
+void Material::SetColorTint(DirectX::XMFLOAT3 _colorTint)
 {
     colorTint = _colorTint;
 }
@@ -39,6 +50,16 @@ void Material::SetPixelShader(Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelSh
 void Material::SetVertexShader(Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader)
 {
     vertexShader = _vertexShader;
+}
+
+void Material::SetUVScale(DirectX::XMFLOAT2 scale)
+{
+    uvScale = scale;
+}
+
+void Material::SetUVOffset(DirectX::XMFLOAT2 offset)
+{
+    uvOffset = offset;
 }
 
 void Material::AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)

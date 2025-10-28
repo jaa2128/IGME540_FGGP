@@ -32,6 +32,7 @@ void Entity::SetMaterial(std::shared_ptr<Material> _material)
 void Entity::Draw()
 {
     // set shaders to the current entity
+    material->BindTexturesAndSamplers();
     Graphics::Context->VSSetShader(material->GetVertexShader().Get(), 0, 0);
     Graphics::Context->PSSetShader(material->GetPixelShader().Get(), 0, 0);
     mesh->Draw();

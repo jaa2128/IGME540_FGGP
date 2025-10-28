@@ -182,10 +182,10 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
 
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
-		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, &woodSRV);
+		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, woodSRV.GetAddressOf());
 
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
-		FixPath(L"../../Assets/Textures/checkered_pavement_tiles.png").c_str(), 0, &tilesSRV);
+		FixPath(L"../../Assets/Textures/checkered_pavement_tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
 
 	// load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
@@ -196,17 +196,17 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// create materials from shaders
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
 	woodMat->AddTextureSRV(0, woodSRV);
 	woodMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> tileMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> tileMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
 	tileMat->AddTextureSRV(0, tilesSRV);
 	tileMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> fancyMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), fancyPixelShader, basicVShader);
-	std::shared_ptr<Material> uvMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), uvPreviewPS, basicVShader);
-	std::shared_ptr<Material> normalMat = std::make_shared<Material>(XMFLOAT4(1, 1, 1, 1), normalPreviewPS, basicVShader);
+	std::shared_ptr<Material> fancyMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), fancyPixelShader, basicVShader);
+	std::shared_ptr<Material> uvMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), uvPreviewPS, basicVShader);
+	std::shared_ptr<Material> normalMat = std::make_shared<Material>(XMFLOAT3(1, 1, 1), normalPreviewPS, basicVShader);
 
 	// create meshes
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cube.obj").c_str(), "Cube");
@@ -283,9 +283,9 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
-	for (auto& entity : entities) {
+	/*for (auto& entity : entities) {
 		entity->GetTransform()->Rotate(0, deltaTime, 0);
-	}
+	}*/
 
 
 	cameras[activeCameraIndex]->Update(deltaTime);
@@ -310,7 +310,6 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// For each entity
 	for (auto& entity : entities) {
-		// Create the Shader Data struct to fill in
 		VertexShaderExternalData vsData = {};
 		PixelShaderExternalData psData = {};
 
@@ -324,12 +323,13 @@ void Game::Draw(float deltaTime, float totalTime)
 		// set data
 		psData.colorTint = entity->GetMaterial()->GetColorTint();
 		psData.time = globalPsData.time;
-		// Draw entity
-		entity->GetMaterial()->BindTexturesAndSamplers();
+		psData.uvOffset = entity->GetMaterial()->GetUVOffset();
+		psData.uvScale = entity->GetMaterial()->GetUVScale();
 
+		// Draw entity
 		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
-		
+	
 		entity->Draw();
 	}
 
