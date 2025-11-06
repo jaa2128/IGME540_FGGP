@@ -50,6 +50,8 @@ Game::Game()
 	// Pick a style
 	ImGui::StyleColorsDark();
 
+
+	// LoadAssets and Entities
 	LoadAssetsAndCreateEntities();
 
 	// Set initial graphics API state
@@ -204,20 +206,19 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// create materials from shaders
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, DirectX::XMFLOAT2(5, 5));
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	woodMat->AddTextureSRV(0, woodSRV);
 	woodMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> woodCrackMat = std::make_shared<Material>("Cracked Wood", XMFLOAT3(1, 1, 1), twoTexPShader, basicVShader);
+	std::shared_ptr<Material> woodCrackMat = std::make_shared<Material>("Cracked Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	woodCrackMat->AddTextureSRV(0, woodSRV);
-	woodCrackMat->AddTextureSRV(1, crackSRV);
 	woodCrackMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> tileMat = std::make_shared<Material>("Tiles",XMFLOAT3(1, 1, 1), basicPShader, basicVShader);
+	std::shared_ptr<Material> tileMat = std::make_shared<Material>("Tiles",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	tileMat->AddTextureSRV(0, tilesSRV);
 	tileMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), fancyPixelShader, basicVShader);
+	std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 1.0f);
 
 	// create meshes
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cube.obj").c_str(), "Cube");
@@ -237,7 +238,7 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(std::make_shared<Entity>(helixMesh, woodMat));
 	entities.push_back(std::make_shared<Entity>(quadMesh, tileMat));
 	entities.push_back(std::make_shared<Entity>(quad2SideMesh, tileMat));
-	entities.push_back(std::make_shared<Entity>(sphereMesh, fancyMat));
+	entities.push_back(std::make_shared<Entity>(sphereMesh, tileMat));
 	entities.push_back(std::make_shared<Entity>(torusMesh, tileMat));
 
 	// Adjust transforms
@@ -248,6 +249,44 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
 	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
 	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
+
+	// Lights 
+	// Initialize Directional Light
+	Light directionalLight1 = {};
+	directionalLight1.type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight1.direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	directionalLight1.color = XMFLOAT3(1.0f, 0, 0);
+	directionalLight1.intensity = 1.0f;
+
+	Light directionalLight2 = {};
+	directionalLight2.type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight2.direction = XMFLOAT3(-1.0f, 0.0f, 0.0f);
+	directionalLight2.color = XMFLOAT3(0.0f, 1.0f, 0);
+	directionalLight2.intensity = 1.0f;
+
+	Light directionalLight3 = {};
+	directionalLight3.type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight3.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+	directionalLight3.color = XMFLOAT3(0.0f, 0, 1.0f);
+	directionalLight3.intensity = 1.0f;
+
+	Light directionalLight4 = {};
+	directionalLight4.type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight4.direction = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	directionalLight4.color = XMFLOAT3(1.0f, 1.0f, 0);
+	directionalLight4.intensity = 1.0f;
+
+	Light directionalLight5 = {};
+	directionalLight5.type = LIGHT_TYPE_DIRECTIONAL;
+	directionalLight5.direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	directionalLight5.color = XMFLOAT3(1.0f, 0, 1.0f);
+	directionalLight5.intensity = 1.0f;
+
+	lights.push_back(directionalLight1);
+	lights.push_back(directionalLight2);
+	lights.push_back(directionalLight3);
+	lights.push_back(directionalLight4);
+	lights.push_back(directionalLight5);
 }
 
 
@@ -278,7 +317,7 @@ void Game::Update(float deltaTime, float totalTime)
 		Window::Quit();
 
 	/*for (auto& entity : entities) {
-		entity->GetTransform()->Rotate(0, deltaTime, 0);
+		entity->GetTransform()->Rotate(0, 0, deltaTime);
 	}*/
 
 
@@ -302,13 +341,21 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
+	VertexShaderExternalData vsData = {};
+	PixelShaderExternalData psData = {};
+
+	psData.camPos = cameras[activeCameraIndex]->GetTransform()->GetPosition();
+	psData.ambientColor = ambientColor;
+	memcpy(&psData.lights, &lights[0], sizeof(Light) * (int)lights.size());
+	
+
 	// For each entity
 	for (auto& entity : entities) {
-		VertexShaderExternalData vsData = {};
-		PixelShaderExternalData psData = {};
+		
 
 		// set the world, view, and projection matrices
 		vsData.world = entity->GetTransform()->GetWorldMatrix();
+		vsData.worldInvTrans = entity->GetTransform()->GetWorldInverseTransposeMatrix();
 		vsData.viewMatrix = cameras[activeCameraIndex]->GetView();
 		vsData.projectionMatrix = cameras[activeCameraIndex]->GetProjection();
 
@@ -319,9 +366,12 @@ void Game::Draw(float deltaTime, float totalTime)
 		psData.time = globalPsData.time;
 		psData.uvOffset = entity->GetMaterial()->GetUVOffset();
 		psData.uvScale = entity->GetMaterial()->GetUVScale();
+		psData.roughness = entity->GetMaterial()->GetRoughness();
 
 		// Draw entity
 		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
+
+		
 
 	
 		entity->Draw();

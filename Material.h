@@ -8,7 +8,7 @@ class Material
 {
 public:
 	Material(const char* _name, DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
-		Microsoft::WRL::ComPtr<ID3D11VertexShader>  _vertexShader, 
+		Microsoft::WRL::ComPtr<ID3D11VertexShader>  _vertexShader, float _roughness, 
 		DirectX::XMFLOAT2 _uvScale = DirectX::XMFLOAT2(1, 1), DirectX::XMFLOAT2 _uvOffset = DirectX::XMFLOAT2(0, 0));
 	~Material();
 
@@ -21,6 +21,7 @@ public:
 	const char* GetName();
 	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& GetTextureSRVMap();
 	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& GetSamplerMap();
+	float GetRoughness();
 
 	// Setters 
 	void SetColorTint(DirectX::XMFLOAT3 _colorTint);
@@ -28,6 +29,7 @@ public:
 	void SetVertexShader(Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader);
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);
+	void SetRoughness(float _roughness);
 
 	// Texture and Sampler methods
 	void AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv);
@@ -45,6 +47,9 @@ private:
 	DirectX::XMFLOAT2 uvScale;
 	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> textureSRVs;
 	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>> samplers;
+
+	// Roughness
+	float roughness;
 
 };
 

@@ -1,3 +1,4 @@
+#include "ShaderStructs.hlsli"
 // Constant buffer bound to the 0 indexed buffer
 // (b0); b = buffer; 0 = index
 // name is arbitrary
@@ -5,6 +6,7 @@
 cbuffer VertexShaderData : register(b0)
 {
     matrix world;
+    matrix worldInvTranspose;
     matrix view;
     matrix projection;
 }
@@ -26,23 +28,6 @@ struct VertexShaderInput
     float3 normal			: NORMAL;		// Object Normals
 };
 
-// Struct representing the data we're sending down the pipeline
-// - Should match our pixel shader's input (hence the name: Vertex to Pixel)
-// - At a minimum, we need a piece of data defined tagged as SV_POSITION
-// - The name of the struct itself is unimportant, but should be descriptive
-// - Each variable must have a semantic, which defines its usage
-struct VertexToPixel
-{
-	// Data type
-	//  |
-	//  |   Name          Semantic
-	//  |    |                |
-	//  v    v                v
-	float4 screenPosition	: SV_POSITION;	// XYZW position (System Value Position)
-    float2 uv				: TEXCOORD;		// Object UV
-    float3 normal			: NORMAL;		// Object Normals
-};
-
 // --------------------------------------------------------
 // The entry point (main method) for our vertex shader
 // 
@@ -56,7 +41,7 @@ VertexToPixel main( VertexShaderInput input )
 	VertexToPixel output;
 	
     output.uv = input.uv;
-    output.normal = input.normal;
+    output.normal = mul((float3x3) worldInvTranspose, input.normal);
 
 	// Here we're essentially passing the input position directly through to the next
 	// stage (rasterizer), though it needs to be a 4-component vector now.  
@@ -75,5 +60,8 @@ VertexToPixel main( VertexShaderInput input )
 
 	// Whatever we return will make its way through the pipeline to the
 	// next programmable stage we're using (the pixel shader for now)
+	
+    output.worldPos = mul(world, float4(input.localPosition, 1)).xyz;
+	
 	return output;
 }

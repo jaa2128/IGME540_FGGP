@@ -9,6 +9,7 @@
 #include "Entity.h"
 #include "Camera.h"
 #include <string>
+#include "Lights.h"
 
 class Game
 {
@@ -44,6 +45,7 @@ private:
 
 	// Variables that must persist between frames
 	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f }; // background color
+	DirectX::XMFLOAT3 ambientColor = DirectX::XMFLOAT3(.01f, .01f, .25f);
 
 	// demo array for ImGui Combo (dropdown select)
 	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
@@ -63,5 +65,8 @@ private:
 	
 	// int to store active camera index in vector
 	int activeCameraIndex;
+
+	// array of lights 
+	std::vector<Light> lights;
 };
 

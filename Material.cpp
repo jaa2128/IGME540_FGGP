@@ -2,9 +2,10 @@
 #include "Graphics.h"
 
 Material::Material(const char* _name, DirectX::XMFLOAT3 _colorTint, Microsoft::WRL::ComPtr<ID3D11PixelShader> _pixelShader, 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader, DirectX::XMFLOAT2 _uvScale, 
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> _vertexShader, float _roughness, DirectX::XMFLOAT2 _uvScale, 
     DirectX::XMFLOAT2 _uvOffset) : colorTint(_colorTint), pixelShader(_pixelShader),
-    vertexShader(_vertexShader), uvScale(_uvScale), uvOffset(_uvOffset), name(_name)
+    vertexShader(_vertexShader), uvScale(_uvScale), uvOffset(_uvOffset), name(_name), 
+    roughness(_roughness)
 {
 }
 
@@ -25,6 +26,11 @@ std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView
 std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& Material::GetSamplerMap()
 {
     return samplers;
+}
+
+float Material::GetRoughness()
+{
+    return roughness;
 }
 
 DirectX::XMFLOAT3 Material::GetColorTint()
@@ -75,6 +81,19 @@ void Material::SetUVScale(DirectX::XMFLOAT2 scale)
 void Material::SetUVOffset(DirectX::XMFLOAT2 offset)
 {
     uvOffset = offset;
+}
+
+void Material::SetRoughness(float _roughness)
+{
+    if (_roughness > 1.0f) {
+        roughness = 1;
+    }
+    else if (_roughness < 0) {
+        roughness = 0;
+    }
+    else {
+        roughness = _roughness;
+    }
 }
 
 void Material::AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)

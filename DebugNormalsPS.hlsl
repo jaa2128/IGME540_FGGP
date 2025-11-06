@@ -1,4 +1,5 @@
 
+#include "ShaderStructs.hlsli"
 // Constant buffer bound to the 0 indexed buffer
 // (b0); b = buffer; 0 = index
 // name is arbitrary
@@ -13,17 +14,7 @@ cbuffer PixelShaderData : register(b0)
 // - The name of the struct itself is unimportant
 // - The variable names don't have to match other shaders (just the semantics)
 // - Each variable must have a semantic, which defines its usage
-struct VertexToPixel
-{
-	// Data type
-	//  |
-	//  |   Name          Semantic
-	//  |    |                |
-	//  v    v                v
-    float4 screenPosition : SV_POSITION;
-    float2 uv : TEXCOORD; // Object UV
-    float3 normal : NORMAL; // Object Normals
-};
+
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader

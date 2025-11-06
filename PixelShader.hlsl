@@ -1,3 +1,6 @@
+#include "ShaderStructs.hlsli"
+#include "Lighting.hlsli"
+
 Texture2D SurfaceTexture : register(t0); // "t" registers for textures
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
 // Constant buffer bound to the 0 indexed buffer
@@ -10,24 +13,13 @@ cbuffer PixelShaderData : register(b0)
     float time;
     float2 uvScale;
     float2 uvOffset;
+    float roughness;
+    float3 camPos;
+    float3 ambientColor;
+    float pad;
+    Light lights[5];
 }
 
-// Struct representing the data we expect to receive from earlier pipeline stages
-// - Should match the output of our corresponding vertex shader
-// - The name of the struct itself is unimportant
-// - The variable names don't have to match other shaders (just the semantics)
-// - Each variable must have a semantic, which defines its usage
-struct VertexToPixel
-{
-	// Data type
-	//  |
-	//  |   Name          Semantic
-	//  |    |                |
-	//  v    v                v
-	float4 screenPosition	: SV_POSITION;
-    float2 uv				: TEXCOORD; // Object UV
-    float3 normal			: NORMAL; // Object Normals
-};
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
@@ -42,11 +34,23 @@ float4 main(VertexToPixel input) : SV_TARGET
 {
 	// Adjust UV coords
     input.uv = input.uv * uvScale + uvOffset;
-	// Just return the input color
-	// - This color (like most values passing through the rasterizer) is 
-	//   interpolated for each pixel between the corresponding vertices 
-	//   of the triangle we're rendering
+    
+    // normalize input
+    input.normal = normalize(input.normal);
+
+    // Texture color
     float3 surfaceColor = SurfaceTexture.Sample(BasicSampler, input.uv).rgb;
     surfaceColor *= colorTint;
-    return float4(surfaceColor, 1);
+    float3 ambient = ambientColor * surfaceColor;
+    
+    float3 totalLight = ambient;
+    
+    // Calculating Diffuse Lighting
+    for (int i = 0; i < 5; i++)
+    {
+        Light light = lights[i];
+        totalLight += DirectionalLight(light, input.normal, input.worldPos, camPos, roughness, surfaceColor);
+    }
+        
+    return float4(totalLight, 1);
 }
