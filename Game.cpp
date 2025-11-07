@@ -503,14 +503,34 @@ void Game::BuildUI()
 			ImGui::TreePop();
 		}
 
+		// Lights
+		if (ImGui::TreeNode("Lights")) {
+
+			// Edit Ambient Term
+			if (ImGui::TreeNode("Ambient Term")) {
+				ImGui::ColorEdit3("Ambient Color", &ambientColor.x);
+				ImGui::TreePop();
+			}
+
+			// Each Light Color and Intensity control
+			for (int i = 0; i < lights.size(); i++) {
+				ImGui::PushID(i);
+
+				// Light Node
+				if (ImGui::TreeNode("Light Node", "Light %d", i)) {
+
+					// Controls
+					ImGui::ColorEdit3("Color", &lights[i].color.x);
+					ImGui::SliderFloat("Intensity", &lights[i].intensity, 0.0f, 10.0f);
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
+
 
 	}
-
-	// Editor Collapsing Header
-	if (ImGui::CollapsingHeader("Editor")) {
-		//ImGui::ColorEdit4("Color Tint", &globalVsData.colorTint.x);
-	}
-
 
 	// Camera Collapsing Header
 	if (ImGui::CollapsingHeader("Camera")) {
