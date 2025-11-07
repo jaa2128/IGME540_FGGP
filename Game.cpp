@@ -270,23 +270,28 @@ void Game::LoadAssetsAndCreateEntities()
 	directionalLight3.color = XMFLOAT3(0.0f, 0, 1.0f);
 	directionalLight3.intensity = 1.0f;
 
-	Light directionalLight4 = {};
-	directionalLight4.type = LIGHT_TYPE_DIRECTIONAL;
-	directionalLight4.direction = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	directionalLight4.color = XMFLOAT3(1.0f, 1.0f, 0);
-	directionalLight4.intensity = 1.0f;
+	Light pointLight1 = {};
+	pointLight1.type = LIGHT_TYPE_POINT;
+	pointLight1.color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	pointLight1.intensity = 5.0f;
+	pointLight1.range = 10.0f;
+	pointLight1.position = XMFLOAT3(-4.5f, 0, 0);
 
-	Light directionalLight5 = {};
-	directionalLight5.type = LIGHT_TYPE_DIRECTIONAL;
-	directionalLight5.direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	directionalLight5.color = XMFLOAT3(1.0f, 0, 1.0f);
-	directionalLight5.intensity = 1.0f;
+	Light spotLight1 = {};
+	spotLight1.type = LIGHT_TYPE_SPOT;
+	spotLight1.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+	spotLight1.color = XMFLOAT3(0.0f, 0, 1.0f);
+	spotLight1.intensity = 2.0f;
+	spotLight1.position = XMFLOAT3(0, 1.5f, 0);
+	spotLight1.range = 10.0f;
+	spotLight1.spotOuterAngle = XMConvertToRadians(30.0f);
+	spotLight1.spotInnerAngle = XMConvertToRadians(20.0f);
 
 	lights.push_back(directionalLight1);
 	lights.push_back(directionalLight2);
 	lights.push_back(directionalLight3);
-	lights.push_back(directionalLight4);
-	lights.push_back(directionalLight5);
+	lights.push_back(pointLight1);
+	lights.push_back(spotLight1);
 }
 
 
@@ -497,6 +502,8 @@ void Game::BuildUI()
 			}
 			ImGui::TreePop();
 		}
+
+
 	}
 
 	// Editor Collapsing Header
