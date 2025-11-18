@@ -37,6 +37,7 @@ public:
 
 private:
 	void CreateBuffers(Vertex vertices[], unsigned int indices[], unsigned int _numVertices, unsigned int _numIndices);
+	void CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices, int numIndices);
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer; // Vertex Buffer
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer; // Index Buffer
 

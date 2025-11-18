@@ -108,4 +108,30 @@ float3 SpotLight(Light light, float3 normal, float3 worldPosition, float3 camera
 
 }
 
+// Normal Mapping unpacking and tangent transformation
+
+// Sample then unpack values
+float3 UnpackNormalMap(Texture2D map, SamplerState _sampler, float2 uv)
+{
+    return map.Sample(_sampler, uv).rgb * 2.0f - 1.0f;
+}
+
+// Convert from Tangent Space to Normal Space
+float3 NormalMapping(Texture2D map, SamplerState _sampler, float2 uv, float3 normal, float3 tangent)
+{
+    // get the unpacked normals
+    float3 unpackedNormal = normalize(UnpackNormalMap(map, _sampler, uv));
+    
+    // create TBN Matrix
+    float3 Normal = normalize(normal);
+    float3 Tangent = normalize(tangent - dot(tangent, Normal) * Normal);
+    float3 Bitangent = cross(Tangent, Normal);
+    
+    float3x3 TBNmatrix = float3x3(Tangent, Bitangent, Normal);
+    
+    //Transform the normal from Vertex Shader with TBN matrix
+    return normalize(mul(unpackedNormal, TBNmatrix));
+
+}
+
 #endif

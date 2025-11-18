@@ -2,6 +2,8 @@
 #include "Lighting.hlsli"
 
 Texture2D SurfaceTexture : register(t0); // "t" registers for textures
+Texture2D NormalMap : register(t1);
+
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
 // Constant buffer bound to the 0 indexed buffer
 // (b0); b = buffer; 0 = index
@@ -37,6 +39,10 @@ float4 main(VertexToPixel input) : SV_TARGET
     
     // normalize input
     input.normal = normalize(input.normal);
+    input.tangent = normalize(input.tangent);
+    
+    // Normal Mapping
+    input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
 
     // Texture color
     float3 surfaceColor = SurfaceTexture.Sample(BasicSampler, input.uv).rgb;
@@ -64,6 +70,7 @@ float4 main(VertexToPixel input) : SV_TARGET
         }
        
     }
-        
+       
+    return float4(input.tangent, 1);
     return float4(totalLight, 1);
 }

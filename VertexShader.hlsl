@@ -26,6 +26,7 @@ struct VertexShaderInput
 	float3 localPosition	: POSITION;     // XYZ position
 	float2 uv				: TEXCOORD;     // Object UV
     float3 normal			: NORMAL;		// Object Normals
+    float3 tangent			: TANGENT;
 };
 
 // --------------------------------------------------------
@@ -62,6 +63,8 @@ VertexToPixel main( VertexShaderInput input )
 	// next programmable stage we're using (the pixel shader for now)
 	
     output.worldPos = mul(world, float4(input.localPosition, 1)).xyz;
+	
+    output.tangent = normalize(mul((float3x3) world, input.tangent));
 	
 	return output;
 }

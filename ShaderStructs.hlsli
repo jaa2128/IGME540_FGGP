@@ -15,6 +15,7 @@ struct VertexToPixel
     float4 screenPosition : SV_POSITION;
     float2 uv : TEXCOORD; // Object UV
     float3 normal : NORMAL; // Object Normals
+    float3 tangent : TANGENT;
     float3 worldPos : POSITION;
 };
 
