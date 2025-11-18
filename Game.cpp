@@ -189,6 +189,17 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> crackSRV;
 
+	// Textures with Normals
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> 
+		rockSRV,
+		rockNormalsSRV,
+		cushionSRV,
+		cushionNormalsSRV, 
+		cobblestoneSRV,
+		cobblestoneNormalsSRV,
+		flatNormalsSRV;
+
+
 	// Wood
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
 		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, woodSRV.GetAddressOf());
@@ -200,6 +211,31 @@ void Game::LoadAssetsAndCreateEntities()
 	// Crack
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
 		FixPath(L"../../Assets/Textures/grayscale_crack.png").c_str(), 0, crackSRV.GetAddressOf());
+
+	// Rocks
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/rock.png").c_str(), 0, rockSRV.GetAddressOf());
+
+	// Cushion
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/cushion.png").c_str(), 0, cushionSRV.GetAddressOf());
+
+	// Cobblestone
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/cobblestone.png").c_str(), 0, cobblestoneSRV.GetAddressOf());
+
+	// Normals
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/rock_normals.png").c_str(), 0, rockNormalsSRV.GetAddressOf());
+
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/cushion_normals.png").c_str(), 0, cushionNormalsSRV.GetAddressOf());
+
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/cobblestone_normals.png").c_str(), 0, cobblestoneNormalsSRV.GetAddressOf());
+
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
+		FixPath(L"../../Assets/Textures/flat_normals.png").c_str(), 0, flatNormalsSRV.GetAddressOf());
 
 	// load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
@@ -213,15 +249,34 @@ void Game::LoadAssetsAndCreateEntities()
 	// create materials from shaders
 	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	woodMat->AddTextureSRV(0, woodSRV);
+	woodMat->AddTextureSRV(1, flatNormalsSRV);
 	woodMat->AddSampler(0, samplerState);
 
 	std::shared_ptr<Material> woodCrackMat = std::make_shared<Material>("Cracked Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	woodCrackMat->AddTextureSRV(0, woodSRV);
+	woodCrackMat->AddTextureSRV(1, flatNormalsSRV);
 	woodCrackMat->AddSampler(0, samplerState);
 
 	std::shared_ptr<Material> tileMat = std::make_shared<Material>("Tiles",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	tileMat->AddTextureSRV(0, tilesSRV);
+	tileMat->AddTextureSRV(1, flatNormalsSRV);
 	tileMat->AddSampler(0, samplerState);
+
+	// create materials with normals
+	std::shared_ptr<Material> rockMat = std::make_shared<Material>("Rocks", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
+	rockMat->AddTextureSRV(0, rockSRV);
+	rockMat->AddTextureSRV(1, rockNormalsSRV);
+	rockMat->AddSampler(0, samplerState);
+
+	std::shared_ptr<Material> cushionMat = std::make_shared<Material>("Cushion", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
+	cushionMat->AddTextureSRV(0, cushionSRV);
+	cushionMat->AddTextureSRV(1, cushionNormalsSRV);
+	cushionMat->AddSampler(0, samplerState);
+
+	std::shared_ptr<Material> cobblestoneMat = std::make_shared<Material>("Cobblestone", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
+	cobblestoneMat->AddTextureSRV(0, cobblestoneSRV);
+	cobblestoneMat->AddTextureSRV(1, cobblestoneNormalsSRV);
+	cobblestoneMat->AddSampler(0, samplerState);
 
 	std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 1.0f);
 
@@ -238,12 +293,12 @@ void Game::LoadAssetsAndCreateEntities()
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, quadMesh, quad2SideMesh, sphereMesh, torusMesh });
 
 	// create entities
-	entities.push_back(std::make_shared<Entity>(cubeMesh, woodCrackMat));
-	entities.push_back(std::make_shared<Entity>(cylinderMesh, woodMat));
-	entities.push_back(std::make_shared<Entity>(helixMesh, woodMat));
-	entities.push_back(std::make_shared<Entity>(quadMesh, tileMat));
-	entities.push_back(std::make_shared<Entity>(quad2SideMesh, tileMat));
-	entities.push_back(std::make_shared<Entity>(sphereMesh, tileMat));
+	entities.push_back(std::make_shared<Entity>(cubeMesh, cobblestoneMat));
+	entities.push_back(std::make_shared<Entity>(cylinderMesh, cobblestoneMat));
+	entities.push_back(std::make_shared<Entity>(helixMesh, cushionMat));
+	entities.push_back(std::make_shared<Entity>(quadMesh, cushionMat));
+	entities.push_back(std::make_shared<Entity>(quad2SideMesh, rockMat));
+	entities.push_back(std::make_shared<Entity>(sphereMesh, rockMat));
 	entities.push_back(std::make_shared<Entity>(torusMesh, tileMat));
 
 	// Adjust transforms
@@ -326,9 +381,9 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
-	/*for (auto& entity : entities) {
+	for (auto& entity : entities) {
 		entity->GetTransform()->Rotate(0, deltaTime, 0);
-	}*/
+	}
 
 
 	cameras[activeCameraIndex]->Update(deltaTime);

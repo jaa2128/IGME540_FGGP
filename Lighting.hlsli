@@ -65,6 +65,12 @@ float3 DirectionalLight(Light light, float3 normal, float3 worldPosition, float3
     // get the specular term
     float specularTerm = SpecularTerm(normal, directionToLight, vectorToCamera, roughness);
     
+    // - If the diffuse amount is 0, any(diffuse) returns 0
+    // - If the diffuse amount is != 0, any(diffuse) returns 1
+    // - So when diffuse is 0, specular becomes 0
+    specularTerm *= any(diffuseTerm);
+
+    
     // perform calculation
     return (diffuseTerm * surfaceColor + specularTerm) * light.color * light.intensity;
 }
@@ -83,6 +89,11 @@ float3 PointLight(Light light, float3 normal, float3 worldPosition, float3 camer
     
     // get attenuation value
     float attenuation = Attenuate(light, worldPosition);
+    
+    // - If the diffuse amount is 0, any(diffuse) returns 0
+    // - If the diffuse amount is != 0, any(diffuse) returns 1
+    // - So when diffuse is 0, specular becomes 0
+    specularTerm *= any(diffuseTerm);
     
     // perform calculation
     return (diffuseTerm * surfaceColor + specularTerm) * attenuation * light.color * light.intensity;
