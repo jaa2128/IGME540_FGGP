@@ -2,23 +2,6 @@
 
 TextureCube SkyCube : register(t0); // "t" registers for textures
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
-// Constant buffer bound to the 0 indexed buffer
-// (b0); b = buffer; 0 = index
-// name is arbitrary
-// layout MUST match struct
-cbuffer PixelShaderData : register(b0)
-{
-    float3 colorTint;
-    float time;
-    float2 uvScale;
-    float2 uvOffset;
-    float roughness;
-    float3 camPos;
-    float3 ambientColor;
-    float pad;
-    Light lights[5];
-}
-
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
