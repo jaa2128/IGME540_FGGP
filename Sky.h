@@ -22,6 +22,9 @@ public:
 		Microsoft::WRL::ComPtr<ID3D11PixelShader> _skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> _sampler
 	);
+
+	void Draw(std::shared_ptr<Camera> camera);
+
 private:
 
 	// Helper for creating a cubemap from 6 individual textures

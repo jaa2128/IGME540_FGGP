@@ -185,9 +185,7 @@ void Game::LoadAssetsAndCreateEntities()
 	Graphics::Device->CreateSamplerState(&sampDesc, samplerState.GetAddressOf());
 
 	// load textures
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> crackSRV;
 
 	// Textures with Normals
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> 
@@ -199,18 +197,9 @@ void Game::LoadAssetsAndCreateEntities()
 		cobblestoneNormalsSRV,
 		flatNormalsSRV;
 
-
-	// Wood
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
-		FixPath(L"../../Assets/Textures/wood_planks.png").c_str(), 0, woodSRV.GetAddressOf());
-
 	// Tiles
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), 
 		FixPath(L"../../Assets/Textures/checkered_pavement_tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
-
-	// Crack
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
-		FixPath(L"../../Assets/Textures/grayscale_crack.png").c_str(), 0, crackSRV.GetAddressOf());
 
 	// Rocks
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(),
@@ -240,23 +229,15 @@ void Game::LoadAssetsAndCreateEntities()
 	// load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVShader = LoadVertexShader(L"VertexShader.cso");
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPShader = LoadPixelShader(L"PixelShader.cso");
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> fancyPixelShader = LoadPixelShader(L"CustomPS.cso");
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> normalPreviewPS = LoadPixelShader(L"DebugNormalsPS.cso");
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> uvPreviewPS = LoadPixelShader(L"DebugUVsPS.cso");
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> twoTexPShader = LoadPixelShader(L"TwoTexturePS.cso");
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVShader = LoadVertexShader(L"SkyVS.cso");
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPShader = LoadPixelShader(L"SkyPS.cso");
+	//Microsoft::WRL::ComPtr<ID3D11PixelShader> fancyPixelShader = LoadPixelShader(L"CustomPS.cso");
+	//Microsoft::WRL::ComPtr<ID3D11PixelShader> normalPreviewPS = LoadPixelShader(L"DebugNormalsPS.cso");
+	//Microsoft::WRL::ComPtr<ID3D11PixelShader> uvPreviewPS = LoadPixelShader(L"DebugUVsPS.cso");
+	//Microsoft::WRL::ComPtr<ID3D11PixelShader> twoTexPShader = LoadPixelShader(L"TwoTexturePS.cso");
 
 
 	// create materials from shaders
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
-	woodMat->AddTextureSRV(0, woodSRV);
-	woodMat->AddTextureSRV(1, flatNormalsSRV);
-	woodMat->AddSampler(0, samplerState);
-
-	std::shared_ptr<Material> woodCrackMat = std::make_shared<Material>("Cracked Wood", XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
-	woodCrackMat->AddTextureSRV(0, woodSRV);
-	woodCrackMat->AddTextureSRV(1, flatNormalsSRV);
-	woodCrackMat->AddSampler(0, samplerState);
-
 	std::shared_ptr<Material> tileMat = std::make_shared<Material>("Tiles",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 0.0f);
 	tileMat->AddTextureSRV(0, tilesSRV);
 	tileMat->AddTextureSRV(1, flatNormalsSRV);
@@ -278,7 +259,7 @@ void Game::LoadAssetsAndCreateEntities()
 	cobblestoneMat->AddTextureSRV(1, cobblestoneNormalsSRV);
 	cobblestoneMat->AddSampler(0, samplerState);
 
-	std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 1.0f);
+	//std::shared_ptr<Material> fancyMat = std::make_shared<Material>("Fancy",XMFLOAT3(1, 1, 1), basicPShader, basicVShader, 1.0f);
 
 	// create meshes
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath("../../Assets/Meshes/cube.obj").c_str(), "Cube");
@@ -291,6 +272,20 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// add meshes to the vector 
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, quadMesh, quad2SideMesh, sphereMesh, torusMesh });
+
+	// create sky
+	sky = std::make_shared<Sky>(
+		FixPath(L"../../Assets/Textures/right.png").c_str(),
+		FixPath(L"../../Assets/Textures/left.png").c_str(),
+		FixPath(L"../../Assets/Textures/up.png").c_str(),
+		FixPath(L"../../Assets/Textures/down.png").c_str(),
+		FixPath(L"../../Assets/Textures/front.png").c_str(),
+		FixPath(L"../../Assets/Textures/back.png").c_str(),
+		cubeMesh,
+		skyVShader,
+		skyPShader,
+		samplerState
+	);
 
 	// create entities
 	entities.push_back(std::make_shared<Entity>(cubeMesh, cobblestoneMat));
@@ -441,6 +436,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	
 		entity->Draw();
 	}
+
+	// draw sky after everything
+	sky->Draw(cameras[activeCameraIndex]);
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME

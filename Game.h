@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include <string>
 #include "Lights.h"
+#include "Sky.h"
 
 class Game
 {
@@ -68,5 +69,8 @@ private:
 
 	// array of lights 
 	std::vector<Light> lights;
+
+	// Sky box
+	std::shared_ptr<Sky> sky;
 };
 

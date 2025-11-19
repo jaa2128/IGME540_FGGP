@@ -23,3 +23,8 @@ struct PixelShaderExternalData {
 	float pad;
 	Light lights[5];
 };
+
+struct SkyBoxExternalData {
+	DirectX::XMFLOAT4X4 viewMatrix;
+	DirectX::XMFLOAT4X4 projectionMatrix;
+};

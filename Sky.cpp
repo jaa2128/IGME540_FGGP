@@ -1,4 +1,5 @@
 #include "Sky.h"
+#include "BufferStructs.h"
 #include <WICTextureLoader.h>
 
 using namespace DirectX;
@@ -15,8 +16,48 @@ Sky::Sky(const wchar_t* right,
 		 Microsoft::WRL::ComPtr<ID3D11SamplerState> _sampler) : 
 	skyMesh(_mesh), skyVS(_skyVS), skyPS(_skyPS), sampler(_sampler)
 {
+	// Rasterizer to reverse the cull mode
+	D3D11_RASTERIZER_DESC rasterizerDesc = {};
+	rasterizerDesc.CullMode = D3D11_CULL_FRONT;
+	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerDesc.DepthClipEnable = true;
+	Graphics::Device->CreateRasterizerState(&rasterizerDesc, skyRasterState.GetAddressOf());
 
-	CreateCubemap(right, left, up, down, front, back);
+	// Depth-Stencil State to accept pixels with depth of 1
+	D3D11_DEPTH_STENCIL_DESC depthDesc = {};
+	depthDesc.DepthEnable = true;
+	depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	Graphics::Device->CreateDepthStencilState(&depthDesc, skyDepthState.GetAddressOf());
+
+
+	skySRV = CreateCubemap(right, left, up, down, front, back);
+}
+
+void Sky::Draw(std::shared_ptr<Camera> camera)
+{
+	// Set Rasterizer State and Depth Stencil State
+	Graphics::Context->RSSetState(skyRasterState.Get());
+	Graphics::Context->OMSetDepthStencilState(skyDepthState.Get(), 0);
+
+	// Set Shaders
+	Graphics::Context->VSSetShader(skyVS.Get(), 0, 0);
+	Graphics::Context->PSSetShader(skyPS.Get(), 0, 0);
+
+	SkyBoxExternalData skyBoxData{};
+	skyBoxData.viewMatrix = camera->GetView();
+	skyBoxData.projectionMatrix = camera->GetProjection();
+	Graphics::FillAndBindNextConstantBuffer(&skyBoxData, sizeof(SkyBoxExternalData), D3D11_VERTEX_SHADER, 0);
+
+	Graphics::Context->PSSetShaderResources(0, 1, skySRV.GetAddressOf());
+	Graphics::Context->PSSetSamplers(0, 1, sampler.GetAddressOf());
+
+	// Set mesh and draw
+	skyMesh->Draw();
+
+	// Reset rasterier and depth stencil
+	Graphics::Context->RSSetState(0);
+	Graphics::Context->OMSetDepthStencilState(0, 0);
 }
 
 // --------------------------------------------------------
