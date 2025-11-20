@@ -7,6 +7,14 @@
 #define LIGHT_TYPE_POINT 1
 #define LIGHT_TYPE_SPOT 2
 
+// PBR Constants:
+static const float MIN_ROUGHNESS = 0.0000001f;
+
+static const float PI = 3.14159265359f;
+static const float TWO_PI = PI * 2.0f;
+static const float HALF_PI = PI / 2.0f;
+static const float QUARTER_PI = PI / 4.0f;
+
 // Struct that defines a light
 struct Light
 {
@@ -27,22 +35,46 @@ float DiffuseTerm(float3 normal, float3 directionToLight)
 
 }
 
-float SpecularTerm(float3 normal, float3 directionToLight, float3 vectorToCameraPos, float roughness)
+// Normal Distribution Func
+float D_GGX(float3 normal, float3 halfVector, float roughness)
 {
-    //Calculate reflection vector
-    float3 reflection = reflect(-directionToLight, normal);
+    // Pre-calculations
+    float NdotH = saturate(dot(normal, halfVector));
+    float NdotH2 = NdotH * NdotH;
+    float a = roughness * roughness; // Remapping roughness
+    float a2 = max(a * a, MIN_ROUGHNESS);
+    // Denominator to be squared is ((n dot h)^2 * (a^2 - 1) + 1)
+    float denomToSquare = NdotH2 * (a2 - 1) + 1;
+    return a2 / (PI * denomToSquare * denomToSquare);
+}
+
+// Geometric Shadowing
+float G_SchlickGGX(float3 normal, float3 viewVector, float roughness)
+{
+    float k = pow(roughness + 1, 2) / 8.0f; // End result of remaps
+    float NdotV = saturate(dot(normal, viewVector));
+    return 1 / (NdotV / (NdotV * (1 - k) + k));
+}
+
+// Fresnel
+float3 F_Schlick(float3 viewVector, float3 halfVector, float3 f0)
+{
+    float VdotH = saturate(dot(viewVector, halfVector));
+    return f0 + (1 - f0) * pow(1 - VdotH, 5);
+}
+
+// PBR Specular Term using Cook-Torrance MicrofacetBDRF
+float SpecularTerm(float3 normal, float3 directionToLight, float3 vectorToCameraPos, float roughness, float3 f0, out float3 F_out)
+{
+    // Calculate halfVector
+    float3 halfVector = normalize(vectorToCameraPos + directionToLight);
+
+    // get denominators
+    float D = D_GGX(normal, halfVector, roughness);
+    float F = F_Schlick(vectorToCameraPos, halfVector, f0);
+    float G = G_SchlickGGX(normal, vectorToCameraPos, roughness);
     
-    // if Roughness is 1 there is no specular term
-    if (roughness == 1)
-    {
-        return 0.0f;
-    }
-    // Otherwise calculate it
-    else
-    {
-        return pow(max(dot(reflection, vectorToCameraPos), 0.0f), (1 - roughness) * MAX_SPECULAR_EXPONENT);
-    }
-        
+    //
 
 }
 
