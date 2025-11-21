@@ -8,6 +8,9 @@
 #define LIGHT_TYPE_SPOT 2
 
 // PBR Constants:
+// fresnel value for non metals
+static const float F0_NON_METAL = 0.04f;
+
 static const float MIN_ROUGHNESS = 0.0000001f;
 
 static const float PI = 3.14159265359f;
@@ -43,8 +46,10 @@ float D_GGX(float3 normal, float3 halfVector, float roughness)
     float NdotH2 = NdotH * NdotH;
     float a = roughness * roughness; // Remapping roughness
     float a2 = max(a * a, MIN_ROUGHNESS);
+    
     // Denominator to be squared is ((n dot h)^2 * (a^2 - 1) + 1)
     float denomToSquare = NdotH2 * (a2 - 1) + 1;
+    
     return a2 / (PI * denomToSquare * denomToSquare);
 }
 
@@ -53,7 +58,7 @@ float G_SchlickGGX(float3 normal, float3 viewVector, float roughness)
 {
     float k = pow(roughness + 1, 2) / 8.0f; // End result of remaps
     float NdotV = saturate(dot(normal, viewVector));
-    return 1 / (NdotV / (NdotV * (1 - k) + k));
+    return 1 / (NdotV * (1 - k) + k);
 }
 
 // Fresnel
@@ -64,18 +69,29 @@ float3 F_Schlick(float3 viewVector, float3 halfVector, float3 f0)
 }
 
 // PBR Specular Term using Cook-Torrance MicrofacetBDRF
-float SpecularTerm(float3 normal, float3 directionToLight, float3 vectorToCameraPos, float roughness, float3 f0, out float3 F_out)
+float3 SpecularTerm(float3 normal, float3 directionToLight, float3 vectorToCameraPos, float roughness, float3 f0, out float3 F_out)
 {
     // Calculate halfVector
     float3 halfVector = normalize(vectorToCameraPos + directionToLight);
 
     // get denominators
     float D = D_GGX(normal, halfVector, roughness);
-    float F = F_Schlick(vectorToCameraPos, halfVector, f0);
-    float G = G_SchlickGGX(normal, vectorToCameraPos, roughness);
+    float3 F = F_Schlick(vectorToCameraPos, halfVector, f0);
+    float G = G_SchlickGGX(normal, vectorToCameraPos, roughness) * G_SchlickGGX(normal, directionToLight, roughness);
     
-    //
+    // Pass the Fresnel term out for Diffuse balance later
+    F_out = F;
+    
+    // Specular term:
+    float3 spec = (D * F * G) / 4;
+    
+    return spec * saturate(dot(normal, directionToLight));
+}
 
+// Diffuse Energy Conservation for metals
+float3 DiffuseEnergyConserve(float3 diffuse, float3 F, float metalness)
+{
+    return diffuse * (1 - F) * (1 - metalness);
 }
 
 float Attenuate(Light light, float3 worldPos)
@@ -85,7 +101,7 @@ float Attenuate(Light light, float3 worldPos)
     return att * att;
 }
 
-float3 DirectionalLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float3 surfaceColor)
+float3 DirectionalLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
 {
     // Get the normalized direction of the surface to the light (reverse of incoming direction)
     float3 directionToLight = normalize(-light.direction);
@@ -93,21 +109,23 @@ float3 DirectionalLight(Light light, float3 normal, float3 worldPosition, float3
     
     // get the Diffuse term
     float diffuseTerm = DiffuseTerm(normal, directionToLight);
-   
-    // get the specular term
-    float specularTerm = SpecularTerm(normal, directionToLight, vectorToCamera, roughness);
     
-    // - If the diffuse amount is 0, any(diffuse) returns 0
-    // - If the diffuse amount is != 0, any(diffuse) returns 1
-    // - So when diffuse is 0, specular becomes 0
-    specularTerm *= any(diffuseTerm);
+    // Fresnel Calculation
+    float3 F;
+    
+    // get the specular term
+    // Fresnel Term calulated here will be pushed out to F
+    float3 specularTerm = SpecularTerm(normal, directionToLight, vectorToCamera, roughness, specularColor, F);
+    
 
+    // Calculate Diffuse with energy conservation
+    float3 balancedDiffuse = DiffuseEnergyConserve(diffuseTerm, F, metalness);
     
     // perform calculation
-    return (diffuseTerm * surfaceColor + specularTerm) * light.color * light.intensity;
+    return (balancedDiffuse * surfaceColor + specularTerm) * light.color * light.intensity;
 }
 
-float3 PointLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float3 surfaceColor)
+float3 PointLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
 {
     // Get the normalized direction of the surface to the light (position of light - world position of surface)
     float3 directionToLight = normalize(light.position - worldPosition);
@@ -116,22 +134,24 @@ float3 PointLight(Light light, float3 normal, float3 worldPosition, float3 camer
     // get the Diffuse term
     float diffuseTerm = DiffuseTerm(normal, directionToLight);
    
+    // Fresnel Calculation
+    float3 F;
+    
     // get the specular term
-    float specularTerm = SpecularTerm(normal, directionToLight, vectorToCamera, roughness);
+    float3 specularTerm = SpecularTerm(normal, directionToLight, vectorToCamera, roughness, specularColor, F);
     
     // get attenuation value
     float attenuation = Attenuate(light, worldPosition);
+   
     
-    // - If the diffuse amount is 0, any(diffuse) returns 0
-    // - If the diffuse amount is != 0, any(diffuse) returns 1
-    // - So when diffuse is 0, specular becomes 0
-    specularTerm *= any(diffuseTerm);
+    // Calculate Diffuse with energy conservation
+    float3 balancedDiffuse = DiffuseEnergyConserve(diffuseTerm, F, metalness);
     
     // perform calculation
-    return (diffuseTerm * surfaceColor + specularTerm) * attenuation * light.color * light.intensity;
+    return (balancedDiffuse * surfaceColor + specularTerm) * attenuation * light.color * light.intensity;
 }
 
-float3 SpotLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float3 surfaceColor)
+float3 SpotLight(Light light, float3 normal, float3 worldPosition, float3 cameraPosition, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
 {
      // Get the normalized direction of the surface to the light (position of light - world position of surface)
     float3 directionToLight = normalize(light.position - worldPosition);
@@ -147,7 +167,7 @@ float3 SpotLight(Light light, float3 normal, float3 worldPosition, float3 camera
     // Linear falloff over the range, clamp 0-1, apply to light calc
     float spotTerm = saturate((cosOuter - pixelAngle) / falloffRange);
     
-    return PointLight(light, normal, worldPosition, cameraPosition, roughness, surfaceColor) * spotTerm;
+    return PointLight(light, normal, worldPosition, cameraPosition, roughness, metalness, surfaceColor, specularColor) * spotTerm;
 
 }
 

@@ -46,7 +46,7 @@ private:
 
 	// Variables that must persist between frames
 	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f }; // background color
-	DirectX::XMFLOAT3 ambientColor = DirectX::XMFLOAT3(.01f, .01f, .25f);
+	DirectX::XMFLOAT3 ambientColor = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	// demo array for ImGui Combo (dropdown select)
 	const char* flavors[6] = {"Vanilla", "Chocolate", "Strawberry", "Neopolitan", "Mint", "Rocky Road"};
