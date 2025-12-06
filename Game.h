@@ -33,6 +33,9 @@ private:
 	void RefreshUI(float deltaTime);
 	void BuildUI();
 
+	void CreateShadowMapResources();
+	void RenderShadowMap();
+
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> LoadPixelShader(const std::wstring& fileName);
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> LoadVertexShader(const std::wstring& fileName);
 
@@ -72,5 +75,13 @@ private:
 
 	// Sky box
 	std::shared_ptr<Sky> sky;
+
+	// Shadow Map Data
+	float shadowMapResolution = 1024;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> shadowDSV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shadowSRV;
+	DirectX::XMFLOAT4X4 lightViewMatrix;
+	DirectX::XMFLOAT4X4 lightProjectionMatrix;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> shadowVS;
 };
 
