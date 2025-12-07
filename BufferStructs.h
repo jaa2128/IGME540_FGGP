@@ -7,6 +7,9 @@ struct VertexShaderExternalData {
 	DirectX::XMFLOAT4X4 worldInvTrans;
 	DirectX::XMFLOAT4X4 viewMatrix;
 	DirectX::XMFLOAT4X4 projectionMatrix;
+
+	DirectX::XMFLOAT4X4 lightViewMatrix;
+	DirectX::XMFLOAT4X4 lightProjMatrix;
 	
 
 	// Total bytes: 28 bytes

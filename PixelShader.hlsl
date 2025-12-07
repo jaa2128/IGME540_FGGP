@@ -5,7 +5,10 @@ Texture2D Albedo : register(t0); // "t" registers for textures
 Texture2D NormalMap : register(t1);
 Texture2D RoughnessMap : register(t2);
 Texture2D MetalnessMap : register(t3);
+Texture2D ShadowMap : register(t4);
+
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
+SamplerComparisonState ShadowSampler : register(s1);
 // Constant buffer bound to the 0 indexed buffer
 // (b0); b = buffer; 0 = index
 // name is arbitrary
@@ -61,6 +64,19 @@ float4 main(VertexToPixel input) : SV_TARGET
     // because of linear texture sampling, so we lerp the specular color to match
     float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
     
+    // Before lighting, check shadowMap
+    input.shadowMapPos /= input.shadowMapPos.w;
+    
+    // Convert the normalized device coordinates to UVs for sampling
+    float2 shadowUV = input.shadowMapPos.xy * 0.5f + 0.5f;
+    shadowUV.y = 1 - shadowUV.y; // Flip the Y
+    
+    // Grab the distances we need: light-to-pixel and closest-surface
+    float distToLight = input.shadowMapPos.z;
+    
+    // Get a ratio of comparison results using SampleCmpLevelZero()
+    float shadowAmount = ShadowMap.SampleCmpLevelZero(ShadowSampler, shadowUV, distToLight).r;
+    
     float3 totalLight;
     
     // Calculating Diffuse Lighting
@@ -71,8 +87,15 @@ float4 main(VertexToPixel input) : SV_TARGET
         switch (lights[i].type)
         {
             case LIGHT_TYPE_DIRECTIONAL:
-                totalLight += DirectionalLight(light, input.normal, input.worldPos, camPos, roughness, metalness, surfaceColor, specularColor);
-                break;
+                float3 lightResult = DirectionalLight(light, input.normal, input.worldPos, camPos, roughness, metalness, surfaceColor, specularColor);
+            
+                if (i == 0)
+                {
+                    lightResult *= shadowAmount;
+                }
+            
+                totalLight += lightResult;
+                    break;
             case LIGHT_TYPE_POINT:
                 totalLight += PointLight(light, input.normal, input.worldPos, camPos, roughness, metalness, surfaceColor, specularColor);
                 break;

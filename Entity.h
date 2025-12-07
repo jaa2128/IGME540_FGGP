@@ -17,6 +17,9 @@ public:
 
 	void Draw();
 
+	// variant that doesn't set PS important for Shadows
+	void DrawShadow(); 
+
 private:
 	std::shared_ptr<Mesh> mesh;
 	std::shared_ptr<Transform> transform;

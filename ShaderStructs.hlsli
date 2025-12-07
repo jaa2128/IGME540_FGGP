@@ -17,6 +17,7 @@ struct VertexToPixel
     float3 normal : NORMAL; // Object Normals
     float3 tangent : TANGENT;
     float3 worldPos : POSITION;
+    float4 shadowMapPos : SHADOW_POSITION;
 };
 
 // Struct representing a single vertex worth of data
