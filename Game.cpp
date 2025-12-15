@@ -594,13 +594,15 @@ void Game::Draw(float deltaTime, float totalTime)
 	sky->Draw(cameras[activeCameraIndex]);
 
 	// --- Post Render -------------------
-
+	
 	// Turning off Vertex and Index buffers to do fullscreen triangle trick
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	ID3D11Buffer* nothing = 0;
 	Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
 	Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
+
+	// --- Blur Pass ---------------------
 
 	// Now render to next Post Process Render Target
 	Graphics::Context->OMSetRenderTargets(1, pixelRTV.GetAddressOf(), 0);
@@ -627,6 +629,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	Graphics::FillAndBindNextConstantBuffer(&blurData, sizeof(BlurData), D3D11_PIXEL_SHADER, 0);
 
 	Graphics::Context->Draw(3, 0);
+
+	// --- Pixelation Pass ---------------
 
 	// Now Render to Back Buffer
 	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
