@@ -85,5 +85,30 @@ private:
 	DirectX::XMFLOAT4X4 lightViewMatrix;
 	DirectX::XMFLOAT4X4 lightProjectionMatrix;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> shadowVS;
+
+	// Resources that are shared among all post processes
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> ppSampler;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> ppVS;
+
+	// Resources that are tied to a particular post process
+
+	// Blur
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> blurPS;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurRTV; // For rendering
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSRV; // For sampling
+
+	// Pixelation
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelPS;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pixelRTV; // For rendering
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> pixelSRV; // For sampling
+
+	// Blur Data
+	int blurDistance = 0;
+
+	// Pixelation Data
+	int pixelSize = 1;
+
+	// post Process helper
+	void ResizePostProcessResources();
 };
 
